@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Bibliothèque d'exercices{% endblock %}
+
+{% block content %}
+<div class="container">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('teacher_dashboard') }}">Tableau de bord</a></li>
+            <li class="breadcrumb-item active">Bibliothèque d'exercices</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Bibliothèque d'exercices</h2>
+        <a href="{{ url_for('create_exercise') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Nouvel exercice
+        </a>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Filtres</h5>
+                </div>
+                <div class="card-body">
+                    <form method="GET" action="{{ url_for('exercise_library') }}">
+                        <div class="mb-3">
+                            <label for="difficulty" class="form-label">Difficulté</label>
+                            <select name="difficulty" id="difficulty" class="form-select">
+                                <option value="">Toutes</option>
+                                <option value="facile" {% if request.args.get('difficulty') == 'facile' %}selected{% endif %}>Facile</option>
+                                <option value="moyen" {% if request.args.get('difficulty') == 'moyen' %}selected{% endif %}>Moyen</option>
+                                <option value="difficile" {% if request.args.get('difficulty') == 'difficile' %}selected{% endif %}>Difficile</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="search" class="form-label">Rechercher</label>
+                            <input type="text" class="form-control" id="search" name="search" value="{{ request.args.get('search', '') }}" placeholder="Titre ou description...">
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Filtrer</button>
+                            <a href="{{ url_for('exercise_library') }}" class="btn btn-outline-secondary">Réinitialiser</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            {% if exercises %}
+                <div class="list-group">
+                    {% for exercise in exercises %}
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between align-items-center">
+                                <h5 class="mb-1">{{ exercise.title }}</h5>
+                                <span class="badge bg-{{ {'facile': 'success', 'moyen': 'warning', 'difficile': 'danger'}[exercise.difficulty] }}">
+                                    {{ exercise.difficulty|capitalize }}
+                                </span>
+                            </div>
+                            <p class="mb-1">{{ exercise.description }}</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    <i class="fas fa-star"></i> {{ exercise.points }} points |
+                                    <i class="fas fa-school"></i> {{ exercise.classes|length }} classes
+                                </small>
+                                <div class="btn-group">
+                                    <a href="{{ url_for('view_exercise', exercise_id=exercise.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i> Voir
+                                    </a>
+                                    {% if exercise.teacher_id == current_user.id %}
+                                        <a href="{{ url_for('edit_exercise', exercise_id=exercise.id) }}" class="btn btn-sm btn-outline-secondary">
+                                            <i class="fas fa-edit"></i> Modifier
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#addToClassModal{{ exercise.id }}">
+                                            <i class="fas fa-plus"></i> Ajouter à une classe
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Modal pour ajouter à une classe -->
+                        <div class="modal fade" id="addToClassModal{{ exercise.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Ajouter "{{ exercise.title }}" à une classe</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <form action="{{ url_for('add_exercise_to_class', exercise_id=exercise.id) }}" method="POST">
+                                        <div class="modal-body">
+                                            {% if current_user.classes_owned %}
+                                                <div class="mb-3">
+                                                    <label for="class_id" class="form-label">Choisir une classe</label>
+                                                    <select class="form-select" id="class_id" name="class_id" required>
+                                                        {% for class in current_user.classes_owned %}
+                                                            <option value="{{ class.id }}">{{ class.name }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                            {% else %}
+                                                <p class="text-muted mb-0">Vous n'avez pas encore créé de classe. <a href="{{ url_for('create_class') }}">Créez votre première classe</a> !</p>
+                                            {% endif %}
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                            {% if current_user.classes_owned %}
+                                                <button type="submit" class="btn btn-primary">Ajouter</button>
+                                            {% endif %}
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    <p class="mb-0">Aucun exercice trouvé. <a href="{{ url_for('create_exercise') }}">Créez votre premier exercice</a> !</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

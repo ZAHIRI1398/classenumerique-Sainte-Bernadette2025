@@ -1,0 +1,90 @@
+{% macro render_matching_pairs(matching_pairs) %}
+<div class="matching-pairs-container">
+    <div class="row mb-3">
+        <div class="col">
+            <button type="button" class="btn btn-success add-matching-pair">
+                <i class="fas fa-plus"></i> Ajouter une paire
+            </button>
+        </div>
+    </div>
+    
+    <div id="matching-pairs">
+        {% for pair in matching_pairs %}
+        <div class="matching-pair row mb-3">
+            <div class="col-5">
+                {{ pair.left_item(class="form-control", placeholder="Élément gauche") }}
+            </div>
+            <div class="col-5">
+                {{ pair.right_item(class="form-control", placeholder="Élément droite") }}
+            </div>
+            <div class="col-2">
+                <button type="button" class="btn btn-danger remove-pair">
+                    <i class="fas fa-trash"></i>
+                </button>
+                {{ pair.order(class="pair-order", type="hidden") }}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.querySelector('#matching-pairs');
+    const addButton = document.querySelector('.add-matching-pair');
+    let pairCount = {{ matching_pairs|length }};
+
+    function updateOrderValues() {
+        container.querySelectorAll('.matching-pair').forEach((pair, index) => {
+            const orderInput = pair.querySelector('.pair-order');
+            if (orderInput) {
+                orderInput.value = index;
+            }
+        });
+    }
+
+    addButton.addEventListener('click', function() {
+        const pairs = container.querySelectorAll('.matching-pair');
+        if (pairs.length > 0) {
+            const template = pairs[0].cloneNode(true);
+            const inputs = template.querySelectorAll('input');
+            
+            inputs.forEach(function(input) {
+                const newName = input.name.replace(/\d+/, pairCount);
+                input.name = newName;
+                input.value = '';
+            });
+
+            container.appendChild(template);
+            pairCount++;
+            updateOrderValues();
+        }
+    });
+
+    container.addEventListener('click', function(e) {
+        const removeButton = e.target.closest('.remove-pair');
+        if (removeButton) {
+            const pair = removeButton.closest('.matching-pair');
+            const pairs = container.querySelectorAll('.matching-pair');
+            if (pairs.length > 2) {
+                pair.remove();
+                updateOrderValues();
+            } else {
+                alert('Il faut au moins deux paires d\'éléments !');
+            }
+        }
+    });
+
+    // Permettre le réarrangement des paires avec drag and drop
+    if (typeof Sortable !== 'undefined') {
+        new Sortable(container, {
+            animation: 150,
+            handle: '.matching-pair',
+            onEnd: function() {
+                updateOrderValues();
+            }
+        });
+    }
+});
+</script>
+{% endmacro %}

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Accueil</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('view_class', class_id=exercise.course.class_ref.id) }}">{{ exercise.course.class_ref.name }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('view_course', course_id=exercise.course.id) }}">{{ exercise.course.title }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ exercise.title }}</li>
+        </ol>
+    </nav>
+
+    <h2>{{ exercise.title }}</h2>
+    
+    {% if exercise.description %}
+    <p class="lead">{{ exercise.description }}</p>
+    {% endif %}
+
+    {% if not current_user.is_teacher %}
+        {% if not is_enrolled %}
+            <div class="alert alert-warning">
+                Vous devez être inscrit dans cette classe pour soumettre cet exercice.
+            </div>
+        {% else %}
+            {% if submission %}
+                <div class="alert alert-info">
+                    {% if submission.score is none %}
+                        Vous avez déjà soumis cet exercice. En attente de correction par votre professeur.
+                    {% else %}
+                        Vous avez déjà soumis cet exercice. Score obtenu : {{ "%.1f"|format(submission.score) }}%
+                        {% if submission.feedback %}
+                            <br>Commentaire du professeur : {{ submission.feedback }}
+                        {% endif %}
+                    {% endif %}
+                </div>
+            {% else %}
+                <form method="POST" action="{{ url_for('submit_exercise', exercise_id=exercise.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="mb-4">
+                        <h4>Complétez avec la bonne étiquette</h4>
+                        {% for i in range(1, 7) %}
+                        <div class="mb-3">
+                            <label for="trou{{ i }}" class="form-label">Trou {{ i }}</label>
+                            <input type="text" class="form-control" id="trou{{ i }}" name="hole_{{ i }}" required>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Soumettre</button>
+                </form>
+            {% endif %}
+        {% endif %}
+    {% endif %}
+
+    {% if current_user.is_teacher %}
+        <div class="mt-4">
+            <h3>Soumissions des étudiants</h3>
+            {% if exercise.submissions %}
+                <div class="list-group">
+                    {% for submission in exercise.submissions %}
+                        <div class="list-group-item">
+                            <h5>{{ submission.submitting_student.username }}</h5>
+                            <p>Date de soumission : {{ submission.submitted_date.strftime('%d/%m/%Y %H:%M') }}</p>
+                            {% if submission.score is none %}
+                                <span class="badge bg-warning">En attente de correction</span>
+                                <a href="{{ url_for('grade_submission', exercise_id=exercise.id, submission_id=submission.id) }}" 
+                                   class="btn btn-primary btn-sm">Noter</a>
+                            {% else %}
+                                <span class="badge bg-success">Note : {{ submission.score }}%</span>
+                                <a href="{{ url_for('grade_submission', exercise_id=exercise.id, submission_id=submission.id) }}" 
+                                   class="btn btn-secondary btn-sm">Modifier la note</a>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p>Aucune soumission pour le moment.</p>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+<style>
+.form-control {
+    max-width: 300px;
+}
+</style>
+{% endblock %}

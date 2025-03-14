@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="mb-0">Profil</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-sm-3">
+                            <h6 class="mb-0">Nom d'utilisateur</h6>
+                        </div>
+                        <div class="col-sm-9 text-secondary">
+                            {{ current_user.username }}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-3">
+                            <h6 class="mb-0">Email</h6>
+                        </div>
+                        <div class="col-sm-9 text-secondary">
+                            {{ current_user.email }}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-3">
+                            <h6 class="mb-0">Rôle</h6>
+                        </div>
+                        <div class="col-sm-9 text-secondary">
+                            {% if current_user.role == 'teacher' %}
+                                Enseignant
+                            {% else %}
+                                Étudiant
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if current_user.role != 'teacher' %}
+                    <div class="row mb-3">
+                        <div class="col-sm-3">
+                            <h6 class="mb-0">Classes</h6>
+                        </div>
+                        <div class="col-sm-9 text-secondary">
+                            {% if current_user.enrolled_classes %}
+                                <ul class="list-unstyled">
+                                {% for class in current_user.enrolled_classes %}
+                                    <li>{{ class.name }}</li>
+                                {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p>Aucune classe pour le moment</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="row">
+                        <div class="col-sm-12">
+                            <a class="btn btn-primary" href="#">Modifier le profil</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Tableau de bord - Étudiant{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1>Mes classes</h1>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Rejoindre une classe</h5>
+                    <form action="{{ url_for('join_class') }}" method="POST">
+                        {{ form.csrf_token }}
+                        <div class="mb-3">
+                            <label for="invite_code" class="form-label">Code d'accès</label>
+                            <input type="text" class="form-control" id="invite_code" name="invite_code" 
+                                   placeholder="Entrez le code d'accès" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Rejoindre
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if not current_user.enrollments %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> Vous n'êtes inscrit à aucune classe pour le moment.
+        </div>
+    {% else %}
+        <div class="row">
+            {% for enrollment in current_user.enrollments %}
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">{{ enrollment.enrolled_class.name }}</h5>
+                        </div>
+                        <div class="card-body">
+                            <h6 class="text-muted mb-3">Exercices disponibles</h6>
+                            
+                            {% if enrollment.enrolled_class.courses %}
+                                <div class="list-group">
+                                    {% for course in enrollment.enrolled_class.courses %}
+                                        {% for exercise in course.exercises %}
+                                            <div class="list-group-item list-group-item-action">
+                                                <div class="d-flex w-100 justify-content-between align-items-center">
+                                                    <h6 class="mb-1">{{ exercise.title }}</h6>
+                                                    <span class="badge bg-primary">{{ exercise.points }} pts</span>
+                                                </div>
+                                                <p class="mb-1">{{ exercise.description }}</p>
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <small class="text-muted">
+                                                        <span class="badge bg-secondary">{{ exercise.subject }}</span>
+                                                        <span class="badge bg-info">{{ exercise.level }}</span>
+                                                        <span class="badge bg-{{ 'success' if exercise.difficulty == 'easy' else 'warning' if exercise.difficulty == 'medium' else 'danger' }}">
+                                                            {{ exercise.difficulty }}
+                                                        </span>
+                                                    </small>
+                                                    <a href="{{ url_for('view_exercise', exercise_id=exercise.id) }}" 
+                                                       class="btn btn-sm btn-outline-primary">
+                                                        {% if exercise.is_completed %}
+                                                            <i class="fas fa-check"></i> Revoir
+                                                        {% else %}
+                                                            <i class="fas fa-play"></i> Commencer
+                                                        {% endif %}
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="text-muted">Aucun exercice disponible pour le moment.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

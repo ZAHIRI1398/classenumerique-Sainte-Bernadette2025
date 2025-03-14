@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">Confirmation de suppression</h4>
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">Êtes-vous sûr de vouloir supprimer la classe "{{ class_.name }}" ?</h5>
+                    <div class="alert alert-warning">
+                        <h6 class="alert-heading">⚠️ Attention !</h6>
+                        <p>Cette action est irréversible et entraînera :</p>
+                        <ul>
+                            <li>La suppression de tous les cours associés à cette classe</li>
+                            <li>La suppression de tous les exercices dans ces cours</li>
+                            <li>La suppression de toutes les soumissions d'exercices des élèves</li>
+                            <li>La suppression de tous les fichiers uploadés pour cette classe</li>
+                            <li>La désinscription de tous les élèves de cette classe</li>
+                        </ul>
+                    </div>
+                    <form method="POST" action="{{ url_for('delete_class', class_id=class_.id) }}">
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ url_for('teacher_dashboard') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Annuler
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> Supprimer définitivement
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

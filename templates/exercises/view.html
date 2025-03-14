@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}{{ exercise.title }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('teacher_dashboard') }}">Tableau de bord</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('exercise_library') }}">Bibliothèque d'exercices</a></li>
+            <li class="breadcrumb-item active">{{ exercise.title }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">{{ exercise.title }}</h4>
+                    <span class="badge bg-{{ {'facile': 'success', 'moyen': 'warning', 'difficile': 'danger'}[exercise.difficulty] }}">
+                        {{ exercise.difficulty|capitalize }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <h5>Description</h5>
+                    <p>{{ exercise.description }}</p>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <h5>Informations</h5>
+                            <ul class="list-unstyled">
+                                <li><strong>Points :</strong> {{ exercise.points }}</li>
+                                <li><strong>Créé par :</strong> {{ exercise.teacher.username }}</li>
+                                <li><strong>Date de création :</strong> {{ exercise.created_at.strftime('%d/%m/%Y') }}</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Classes utilisant cet exercice</h5>
+                            {% if exercise.classes %}
+                                <ul>
+                                    {% for class in exercise.classes %}
+                                        <li>{{ class.name }}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p class="text-muted">Cet exercice n'est pas encore utilisé dans une classe.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% if exercise.teacher_id == current_user.id %}
+                <div class="card-footer">
+                    <div class="btn-group">
+                        <a href="{{ url_for('edit_exercise', exercise_id=exercise.id) }}" class="btn btn-primary">
+                            <i class="fas fa-edit"></i> Modifier
+                        </a>
+                        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteExerciseModal">
+                            <i class="fas fa-trash"></i> Supprimer
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addToClassModal">
+                            <i class="fas fa-plus"></i> Ajouter à une classe
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour ajouter à une classe -->
+<div class="modal fade" id="addToClassModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ajouter à une classe</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('add_exercise_to_class', exercise_id=exercise.id) }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="class_id" class="form-label">Choisir une classe</label>
+                        <select class="form-select" id="class_id" name="class_id" required>
+                            {% for class in current_user.classes %}
+                                <option value="{{ class.id }}">{{ class.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Ajouter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmation de suppression -->
+{% if exercise.teacher_id == current_user.id %}
+<div class="modal fade" id="deleteExerciseModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmer la suppression</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer cet exercice ? Cette action est irréversible.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form action="{{ url_for('delete_exercise', exercise_id=exercise.id) }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Accueil</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('view_class', class_id=exercise.course.class_.id) }}">{{ exercise.course.class_.name }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('view_course', course_id=exercise.course.id) }}">{{ exercise.course.title }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('view_exercise', exercise_id=exercise.id) }}">{{ exercise.title }}</a></li>
+            <li class="breadcrumb-item active">Éditer l'exercice</li>
+        </ol>
+    </nav>
+
+    <h1>Éditer l'exercice à trous</h1>
+    <p class="lead">{{ exercise.description }}</p>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div id="holes-container">
+            {% if exercise.text_holes %}
+                {% for hole in exercise.text_holes|sort(attribute='position') %}
+                <div class="hole-form mb-4 border p-3 rounded">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="mb-0">Trou #{{ loop.index }}</h5>
+                        <button type="button" class="btn btn-danger btn-sm remove-hole">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Texte avant le trou</label>
+                        <textarea name="text_before[]" class="form-control" rows="2" required>{{ hole.text_before }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Réponse correcte</label>
+                        <input type="text" name="answer[]" class="form-control" value="{{ hole.correct_answer }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Texte après le trou (optionnel)</label>
+                        <textarea name="text_after[]" class="form-control" rows="2">{{ hole.text_after }}</textarea>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="hole-form mb-4 border p-3 rounded">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="mb-0">Trou #1</h5>
+                        <button type="button" class="btn btn-danger btn-sm remove-hole">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Texte avant le trou</label>
+                        <textarea name="text_before[]" class="form-control" rows="2" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Réponse correcte</label>
+                        <input type="text" name="answer[]" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Texte après le trou (optionnel)</label>
+                        <textarea name="text_after[]" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="mb-3">
+            <button type="button" class="btn btn-secondary" id="add-hole">
+                <i class="fas fa-plus"></i> Ajouter un trou
+            </button>
+        </div>
+
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+            <a href="{{ url_for('view_exercise', exercise_id=exercise.id) }}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+</div>
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('holes-container');
+    const addButton = document.getElementById('add-hole');
+
+    // Ajouter un nouveau trou
+    addButton.addEventListener('click', function() {
+        const holes = container.getElementsByClassName('hole-form');
+        const newIndex = holes.length + 1;
+        
+        const holeDiv = document.createElement('div');
+        holeDiv.className = 'hole-form mb-4 border p-3 rounded';
+        holeDiv.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="mb-0">Trou #${newIndex}</h5>
+                <button type="button" class="btn btn-danger btn-sm remove-hole">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Texte avant le trou</label>
+                <textarea name="text_before[]" class="form-control" rows="2" required></textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Réponse correcte</label>
+                <input type="text" name="answer[]" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Texte après le trou (optionnel)</label>
+                <textarea name="text_after[]" class="form-control" rows="2"></textarea>
+            </div>
+        `;
+        
+        container.appendChild(holeDiv);
+        updateHoleNumbers();
+    });
+
+    // Supprimer un trou
+    container.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-hole') || e.target.closest('.remove-hole')) {
+            const holeForm = e.target.closest('.hole-form');
+            if (container.getElementsByClassName('hole-form').length > 1) {
+                holeForm.remove();
+                updateHoleNumbers();
+            }
+        }
+    });
+
+    // Mettre à jour les numéros des trous
+    function updateHoleNumbers() {
+        const holes = container.getElementsByClassName('hole-form');
+        Array.from(holes).forEach((hole, index) => {
+            hole.querySelector('h5').textContent = `Trou #${index + 1}`;
+        });
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}

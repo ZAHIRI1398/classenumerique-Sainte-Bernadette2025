@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Accueil</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('view_class', class_id=exercise.course.class_.id) }}">{{ exercise.course.class_.name }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('view_course', course_id=exercise.course.id) }}">{{ exercise.course.title }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('view_exercise', exercise_id=exercise.id) }}">{{ exercise.title }}</a></li>
+            <li class="breadcrumb-item active">Noter la soumission</li>
+        </ol>
+    </nav>
+
+    <h2>Noter la soumission de {{ submission.submitting_student.username }}</h2>
+    <p class="text-muted">Soumis le {{ submission.submitted_at.strftime('%d/%m/%Y à %H:%M') }}</p>
+
+    <!-- Affichage des réponses -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h4>Réponses de l'étudiant</h4>
+            {% if exercise.exercise_type == 'qcm' %}
+                {% for question in exercise.questions|sort(attribute='id') %}
+                    <div class="mb-3">
+                        <p><strong>Question {{ loop.index }}:</strong> {{ question.text }}</p>
+                        <ul class="list-group">
+                            {% for choice in question.choices|sort(attribute='id') %}
+                                {% set answer_key = 'question_' ~ question.id %}
+                                {% set is_selected = submission.answers[answer_key]|int == choice.id %}
+                                <li class="list-group-item 
+                                    {% if is_selected and choice.is_correct %}list-group-item-success
+                                    {% elif is_selected and not choice.is_correct %}list-group-item-danger
+                                    {% elif not is_selected and choice.is_correct %}list-group-item-warning{% endif %}">
+                                    {{ choice.text }}
+                                    {% if is_selected %}<span class="badge bg-primary">Réponse de l'étudiant</span>{% endif %}
+                                    {% if choice.is_correct %}<span class="badge bg-success">Bonne réponse</span>{% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endfor %}
+            {% elif exercise.exercise_type == 'mots_a_placer' %}
+                {% for hole in exercise.text_holes %}
+                    <div class="mb-3">
+                        {% set answer_key = 'hole_' + hole.id|string %}
+                        <p><strong>Trou {{ loop.index }} :</strong></p>
+                        <p><em>Réponse de l'étudiant :</em> {{ submission.answers[answer_key] }}</p>
+                        <p><em>Réponse correcte :</em> {{ hole.correct_answer }}</p>
+                        {% if submission.answers[answer_key]|lower == hole.correct_answer|lower %}
+                            <span class="text-success">Correct</span>
+                        {% else %}
+                            <span class="text-danger">Incorrect</span>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Formulaire de notation -->
+    <div class="card">
+        <div class="card-body">
+            <form method="POST">
+                {{ form.csrf_token }}
+                <div class="mb-3">
+                    {{ form.score.label(class="form-label") }}
+                    {{ form.score(class="form-control", type="number", step="0.1") }}
+                </div>
+                <div class="mb-3">
+                    {{ form.feedback.label(class="form-label") }}
+                    {{ form.feedback(class="form-control", rows="3") }}
+                </div>
+                {{ form.submit(class="btn btn-primary") }}
+                <a href="{{ url_for('view_exercise', exercise_id=exercise.id) }}" class="btn btn-secondary">Annuler</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

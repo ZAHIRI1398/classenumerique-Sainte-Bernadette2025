@@ -1,0 +1,208 @@
+/* Styles pour le formulaire d'exercice */
+.card {
+    border: 1px solid rgba(0, 0, 0, 0.125);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: box-shadow 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+/* Styles pour les zones de dépôt d'images */
+.image-upload-container {
+    position: relative;
+    width: 100%;
+}
+
+.image-upload-dropzone {
+    border: 2px dashed #ccc;
+    border-radius: 4px;
+    padding: 20px;
+    text-align: center;
+    background-color: #f8f9fa;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+}
+
+.image-upload-dropzone.dragover {
+    background-color: #e9ecef;
+    border-color: #6c757d;
+}
+
+.image-upload-dropzone input[type="file"] {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.upload-message {
+    color: #6c757d;
+}
+
+.upload-message i {
+    margin-bottom: 10px;
+}
+
+.image-preview {
+    display: none;
+    width: 100%;
+    height: 200px;
+    margin-top: 10px;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+}
+
+/* Styles pour les questions QCM */
+.question-card {
+    margin-bottom: 1rem;
+}
+
+.choice-item {
+    position: relative;
+}
+
+.choice-item .input-group-text {
+    background-color: transparent;
+}
+
+/* Styles pour les textes à trous */
+.hole-card textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
+/* Styles pour les paires */
+.pair-card .row {
+    margin: 0 -10px;
+}
+
+.pair-card .col-md-6 {
+    padding: 0 10px;
+}
+
+/* Styles pour les boutons d'action */
+.btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+    border-color: #bd2130;
+}
+
+/* Styles pour les messages d'erreur */
+.text-danger {
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+/* Styles pour les champs obligatoires */
+.form-label.required::after {
+    content: " *";
+    color: #dc3545;
+}
+
+/* Styles pour les contrôles de zoom */
+.zoom-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 100;
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 5px;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.zoom-controls .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    margin-left: 2px;
+}
+
+/* Styles pour les annotations */
+.annotation-markers {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.annotation-marker {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background-color: rgba(220, 53, 69, 0.8);
+    border: 2px solid #fff;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+    pointer-events: auto;
+    transition: all 0.2s ease;
+}
+
+.annotation-marker:hover {
+    transform: translate(-50%, -50%) scale(1.2);
+    background-color: rgba(220, 53, 69, 1);
+}
+
+.annotation-marker.selected {
+    background-color: #007bff;
+}
+
+.annotation-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.annotation-list .list-group-item {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.annotation-list .list-group-item:hover {
+    background-color: #f8f9fa;
+}
+
+.annotation-list .list-group-item.selected {
+    background-color: #e9ecef;
+}
+
+/* Styles responsifs */
+@media (max-width: 768px) {
+    .pair-card .col-md-6 + .col-md-6 {
+        margin-top: 1rem;
+    }
+    
+    .image-preview {
+        height: 150px;
+    }
+    
+    .zoom-controls {
+        top: 5px;
+        right: 5px;
+    }
+    
+    .annotation-list {
+        max-height: 200px;
+    }
+}

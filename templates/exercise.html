@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Tableau de bord</a></li>
+            {% if exercise.course %}
+            <li class="breadcrumb-item"><a href="{{ url_for('view_class', class_id=exercise.course.class_.id) }}">{{ exercise.course.class_.name }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('view_course', course_id=exercise.course.id) }}">{{ exercise.course.title }}</a></li>
+            {% endif %}
+            <li class="breadcrumb-item active">{{ exercise.title }}</li>
+        </ol>
+    </nav>
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="mb-0">{{ exercise.title }}</h2>
+            {% if current_user.role == 'teacher' %}
+            <div>
+                <a href="{{ url_for('edit_exercise', exercise_id=exercise.id) }}" class="btn btn-outline-primary">
+                    <i class="fas fa-edit"></i> Modifier
+                </a>
+                <button class="btn btn-outline-danger" onclick="confirmDelete()">
+                    <i class="fas fa-trash"></i> Supprimer
+                </button>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="card-body">
+            <div class="exercise-details mb-4">
+                <h4>Détails de l'exercice</h4>
+                <ul class="list-unstyled">
+                    <li><strong>Type :</strong> {{ exercise.exercise_type }}</li>
+                    <li><strong>Difficulté :</strong> {{ exercise.difficulty }}</li>
+                    <li><strong>Points :</strong> {{ exercise.points }}</li>
+                    <li><strong>Matière :</strong> {{ exercise.subject }}</li>
+                    <li><strong>Niveau :</strong> {{ exercise.level }}</li>
+                </ul>
+            </div>
+
+            {% if exercise.exercise_type == 'QCM' %}
+                <form method="POST" action="{{ url_for('submit_exercise', exercise_id=exercise.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    {% for question in exercise.questions %}
+                    <div class="mb-4">
+                        <h5>{{ question.text }}</h5>
+                        {% for choice in question.choices %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="question_{{ question.id }}" value="{{ choice.id }}" required>
+                            <label class="form-check-label">{{ choice.text }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                    <button type="submit" class="btn btn-primary">Soumettre</button>
+                </form>
+
+            {% elif exercise.exercise_type == 'text_holes' %}
+                {% if submission %}
+                <div class="submission-results mb-4">
+                    <h4>Résultats de votre soumission</h4>
+                    <div class="alert {% if submission.score >= 75 %}alert-success{% elif submission.score >= 50 %}alert-warning{% else %}alert-danger{% endif %}">
+                        <h5>Score : {{ "%.1f"|format(submission.score) }}%</h5>
+                        {% if submission.feedback %}
+                        <div class="feedback mt-3">
+                            {{ submission.feedback|nl2br }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="text-holes-review mt-4">
+                        {% for hole_id, answer in submission.answers.items() %}
+                        <div class="text-hole-item mb-4 p-3 rounded {% if answer.is_correct %}bg-success-light{% else %}bg-danger-light{% endif %}">
+                            <div class="text-hole-content">
+                                {% if answer.text_before %}
+                                <span class="text-before">{{ answer.text_before }}</span>
+                                {% endif %}
+                                
+                                <span class="answer-display mx-2 px-2 py-1 rounded {% if answer.is_correct %}text-success border-success{% else %}text-danger border-danger{% endif %}">
+                                    {{ answer.student_answer }}
+                                    {% if not answer.is_correct %}
+                                    <span class="correct-answer ms-2">
+                                        <i class="fas fa-arrow-right"></i>
+                                        {{ answer.correct_answer }}
+                                    </span>
+                                    {% endif %}
+                                </span>
+                                
+                                {% if answer.text_after %}
+                                <span class="text-after">{{ answer.text_after }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% else %}
+                <form method="POST" action="{{ url_for('submit_exercise', exercise_id=exercise.id) }}" class="text-holes-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="text-holes-container">
+                        {% for hole in exercise.text_holes %}
+                        <div class="text-hole-item mb-4">
+                            <div class="text-hole-content">
+                                {% if hole.text_before %}
+                                <span class="text-before">{{ hole.text_before }}</span>
+                                {% endif %}
+                                <input type="text" class="form-control d-inline-block mx-2" 
+                                       style="width: auto; min-width: 120px;"
+                                       name="hole_{{ hole.id }}" 
+                                       required 
+                                       placeholder="Votre réponse">
+                                {% if hole.text_after %}
+                                <span class="text-after">{{ hole.text_after }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <button type="submit" class="btn btn-primary">Soumettre</button>
+                </form>
+                {% endif %}
+
+                <style>
+                    .text-holes-container {
+                        max-width: 800px;
+                        margin: 0 auto;
+                        padding: 20px;
+                    }
+                    
+                    .text-hole-item {
+                        background-color: #f8f9fa;
+                        border-radius: 8px;
+                        padding: 15px;
+                    }
+                    
+                    .text-hole-content {
+                        font-size: 1.1em;
+                        line-height: 1.6;
+                    }
+                    
+                    .text-before, .text-after {
+                        display: inline;
+                    }
+                    
+                    .text-holes-form .form-control {
+                        border: 2px solid #dee2e6;
+                        border-radius: 4px;
+                        transition: all 0.3s ease;
+                    }
+                    
+                    .text-holes-form .form-control:focus {
+                        border-color: #007bff;
+                        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+                    }
+                    
+                    .bg-success-light {
+                        background-color: rgba(40, 167, 69, 0.1);
+                    }
+                    
+                    .bg-danger-light {
+                        background-color: rgba(220, 53, 69, 0.1);
+                    }
+                    
+                    .answer-display {
+                        border: 1px solid;
+                        display: inline-block;
+                    }
+                    
+                    .correct-answer {
+                        color: #28a745;
+                        font-style: italic;
+                    }
+                    
+                    .feedback {
+                        white-space: pre-line;
+                    }
+                </style>
+
+            {% elif exercise.exercise_type == 'pair_match' %}
+                <form class="pair-match-form" method="POST" action="{{ url_for('submit_exercise', exercise_id=exercise.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="pairs-container">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>Éléments à associer</h5>
+                                <div class="list-group">
+                                    {% for pair in exercise.pair_matches %}
+                                    <div class="pair-element" data-pair-id="{{ pair.id }}">
+                                        {{ pair.text_left }}
+                                        <input type="hidden" name="pair_{{ pair.id }}" class="pair-answer" value="">
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h5>Correspondances</h5>
+                                <div class="list-group">
+                                    {% for pair in exercise.pair_matches|shuffle %}
+                                    <div class="pair-element" data-pair-id="{{ pair.id }}">
+                                        {{ pair.text_right }}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-4" disabled>Soumettre</button>
+                </form>
+
+                <style>
+                    .pairs-container {
+                        margin: 20px 0;
+                    }
+                    .pair-element {
+                        padding: 15px;
+                        margin: 10px 0;
+                        border: 2px solid #dee2e6;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                        background-color: white;
+                    }
+                    .pair-element:hover {
+                        border-color: #007bff;
+                        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                    }
+                    .pair-element.selected {
+                        border-color: #007bff;
+                        background-color: #f8f9fa;
+                    }
+                    .pair-element.matched {
+                        cursor: not-allowed;
+                    }
+                    .list-group {
+                        max-width: 100%;
+                        margin: 0 auto;
+                    }
+                    .list-group-item {
+                        margin-bottom: 10px;
+                    }
+                    @media (max-width: 768px) {
+                        .col-md-6 {
+                            margin-bottom: 20px;
+                        }
+                    }
+                </style>
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        let selectedElement = null;
+                        const pairElements = document.querySelectorAll('.pair-element');
+                        const form = document.querySelector('.pair-match-form');
+                        const matchedPairs = new Set();
+                        const colors = [
+                            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD',
+                            '#D4A5A5', '#9B59B6', '#3498DB', '#1ABC9C', '#F1C40F'
+                        ];
+                        let colorIndex = 0;
+
+                        function getNextColor() {
+                            const color = colors[colorIndex];
+                            colorIndex = (colorIndex + 1) % colors.length;
+                            return color;
+                        }
+
+                        function handlePairSelection(element) {
+                            const pairId = element.dataset.pairId;
+
+                            if (!selectedElement) {
+                                // Premier élément sélectionné
+                                selectedElement = element;
+                                element.classList.add('selected');
+                            } else {
+                                const selectedPairId = selectedElement.dataset.pairId;
+
+                                if (selectedElement === element) {
+                                    // Désélectionner si on clique sur le même élément
+                                    selectedElement.classList.remove('selected');
+                                    selectedElement = null;
+                                } else {
+                                    // Vérifier si les éléments sont déjà associés
+                                    if (!matchedPairs.has(pairId) && !matchedPairs.has(selectedPairId)) {
+                                        // Associer les éléments
+                                        const color = getNextColor();
+                                        selectedElement.style.borderColor = color;
+                                        selectedElement.style.backgroundColor = `${color}22`;
+                                        element.style.borderColor = color;
+                                        element.style.backgroundColor = `${color}22`;
+                                        
+                                        // Mettre à jour le formulaire
+                                        const input = form.querySelector(`input[name="pair_${selectedPairId}"]`);
+                                        if (input) {
+                                            input.value = pairId;
+                                        }
+                                        
+                                        // Marquer les paires comme associées
+                                        matchedPairs.add(pairId);
+                                        matchedPairs.add(selectedPairId);
+                                        
+                                        // Ajouter une animation de succès
+                                        selectedElement.classList.add('matched');
+                                        element.classList.add('matched');
+                                        
+                                        // Vérifier si toutes les paires sont associées
+                                        if (matchedPairs.size === pairElements.length) {
+                                            document.querySelector('.btn-primary').disabled = false;
+                                        }
+                                    }
+                                    
+                                    // Réinitialiser la sélection
+                                    selectedElement.classList.remove('selected');
+                                    selectedElement = null;
+                                }
+                            }
+                        }
+
+                        // Ajouter les écouteurs d'événements
+                        pairElements.forEach(element => {
+                            element.addEventListener('click', function() {
+                                handlePairSelection(this);
+                            });
+                        });
+
+                        // Désactiver le bouton de soumission jusqu'à ce que toutes les paires soient associées
+                        const submitButton = document.querySelector('.btn-primary');
+                        if (submitButton) {
+                            submitButton.disabled = true;
+                        }
+
+                        // Ajouter des styles pour l'animation
+                        const style = document.createElement('style');
+                        style.textContent = `
+                            .pair-element {
+                                transition: all 0.3s ease;
+                            }
+                            .pair-element.selected {
+                                transform: scale(1.05);
+                                box-shadow: 0 0 15px rgba(0,123,255,0.3);
+                            }
+                            .pair-element.matched {
+                                animation: matchSuccess 0.5s ease;
+                            }
+                            @keyframes matchSuccess {
+                                0% { transform: scale(1); }
+                                50% { transform: scale(1.1); }
+                                100% { transform: scale(1); }
+                            }
+                        `;
+                        document.head.appendChild(style);
+                    });
+                </script>
+            {% endif %}
+
+            {% if submission %}
+            <div class="mt-4">
+                <h4>Résultat</h4>
+                <div class="alert {% if submission.score >= 50 %}alert-success{% else %}alert-danger{% endif %}">
+                    <h5>Score : {{ "%.1f"|format(submission.score) }}%</h5>
+                    {% if submission.score >= 50 %}
+                    <p>Félicitations ! Vous avez réussi cet exercice.</p>
+                    {% else %}
+                    <p>Continuez vos efforts ! Vous pouvez réessayer l'exercice pour améliorer votre score.</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

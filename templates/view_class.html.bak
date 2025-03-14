@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0">{{ class_.name }}</h3>
+                    {% if current_user.is_teacher and current_user == class_.teacher %}
+                    <div>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#inviteModal">
+                            Code d'invitation
+                        </button>
+                        <a href="{{ url_for('edit_class', class_id=class_.id) }}" class="btn btn-secondary">
+                            <i class="fas fa-edit"></i> Modifier
+                        </a>
+                        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteClassModal">
+                            <i class="fas fa-trash"></i> Supprimer
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if class_.description %}
+                    <p class="card-text">{{ class_.description }}</p>
+                    {% endif %}
+                    <div class="mt-3">
+                        <h5>Enseignant</h5>
+                        <p>{{ class_.teacher.username }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Liste des cours -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Cours</h4>
+                    {% if current_user.is_teacher and current_user == class_.teacher %}
+                    <a href="{{ url_for('create_course', class_id=class_.id) }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus"></i> Ajouter un cours
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if class_.courses %}
+                    <div class="list-group">
+                        {% for course in class_.courses %}
+                        <a href="{{ url_for('view_course', course_id=course.id) }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h5 class="mb-1">{{ course.title }}</h5>
+                                <small>{{ course.exercises|length }} exercices</small>
+                                {% if current_user.is_teacher and current_user == class_.teacher %}
+                                <div class="btn-group">
+                                    <a href="{{ url_for('edit_course', course_id=course.id) }}" class="btn btn-secondary btn-sm">
+                                        <i class="fas fa-edit"></i> Modifier
+                                    </a>
+                                    <form action="{{ url_for('delete_course', course_id=course.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce cours et tous ses exercices ?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-danger btn-sm">
+                                            <i class="fas fa-trash"></i> Supprimer
+                                        </button>
+                                    </form>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% if course.description %}
+                            <p class="mb-1">{{ course.description }}</p>
+                            {% endif %}
+                            {% if course.exercises %}
+                            <h5>Exercices ({{ course.exercises|length }})</h5>
+                            <div class="list-group">
+                                {% for exercise in course.exercises %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">{{ exercise.title }}</h6>
+                                        <small class="text-muted">{{ exercise.exercise_type }}</small>
+                                    </div>
+                                    <div class="btn-group">
+                                        <a href="{{ url_for('view_exercise', exercise_id=exercise.id) }}" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-eye"></i> Voir
+                                        </a>
+                                        {% if current_user.is_teacher and current_user == class_.teacher %}
+                                        <a href="{{ url_for('edit_exercise', exercise_id=exercise.id) }}" class="btn btn-secondary btn-sm">
+                                            <i class="fas fa-edit"></i> Modifier
+                                        </a>
+                                        <form action="{{ url_for('delete_exercise', exercise_id=exercise.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet exercice ?');">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-danger btn-sm">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <p class="text-muted">Aucun exercice dans ce cours.</p>
+                            {% endif %}
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted">Aucun cours n'a encore été créé pour cette classe.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Liste des étudiants -->
+        <div class="col-md-4">
+            {% if current_user.is_teacher and class_.teacher_id == current_user.id %}
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h3 class="card-title">Étudiants inscrits</h3>
+                </div>
+                <div class="card-body">
+                    {% if enrolled_students %}
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Nom d'utilisateur</th>
+                                        <th>Email</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for enrollment in enrolled_students %}
+                                    <tr>
+                                        <td>{{ enrollment.student.username }}</td>
+                                        <td>{{ enrollment.student.email }}</td>
+                                        <td>
+                                            <form action="{{ url_for('remove_student_from_class', class_id=class_.id, student_id=enrollment.student_id) }}" 
+                                                  method="POST" style="display: inline;">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="btn btn-danger btn-sm" 
+                                                        onclick="return confirm('Êtes-vous sûr de vouloir retirer cet étudiant ?')">
+                                                    <i class="fas fa-user-minus"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">Aucun étudiant inscrit pour le moment.</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal Code d'invitation -->
+<div class="modal fade" id="inviteModal" tabindex="-1" aria-labelledby="inviteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="inviteModalLabel">Code d'invitation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Partagez ce code avec vos étudiants pour qu'ils puissent rejoindre la classe :</p>
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control" value="{{ class_.invite_code }}" id="inviteCode" readonly>
+                    <button class="btn btn-outline-secondary" type="button" onclick="copyInviteCode()">
+                        Copier
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de suppression -->
+{% if current_user.is_teacher and current_user == class_.teacher %}
+<div class="modal fade" id="deleteClassModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmer la suppression</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer cette classe ? Cette action est irréversible.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form action="{{ url_for('delete_class', class_id=class_.id) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function copyInviteCode() {
+    var copyText = document.getElementById("inviteCode");
+    copyText.select();
+    copyText.setSelectionRange(0, 99999);
+    document.execCommand("copy");
+    
+    // Optional: Show a tooltip or message that the code was copied
+    alert("Code d'invitation copié !");
+}
+</script>
+{% endblock content %}

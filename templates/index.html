@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-5 bg-light">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h1 class="display-4 fw-bold">Bienvenue sur Classe Numérique Sainte Bernadette</h1>
+                <p class="lead mb-4">Une plateforme éducative moderne pour les enseignants et les élèves.</p>
+                {% if not current_user.is_authenticated %}
+                <div class="d-grid gap-3 d-sm-flex">
+                    <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg px-4">Se connecter</a>
+                    <a href="{{ url_for('register') }}" class="btn btn-outline-primary btn-lg px-4">S'inscrire</a>
+                </div>
+                {% endif %}
+            </div>
+            <div class="col-md-6">
+                <div class="card shadow-lg">
+                    <div class="card-body p-4">
+                        <h3 class="card-title mb-4">Fonctionnalités principales</h3>
+                        <div class="d-flex mb-3">
+                            <div class="feature-icon bg-primary bg-gradient text-white me-3 p-3 rounded">
+                                <i class="fas fa-chalkboard-teacher"></i>
+                            </div>
+                            <div>
+                                <h5>Gestion des classes</h5>
+                                <p class="text-muted mb-0">Créez et gérez facilement vos classes virtuelles</p>
+                            </div>
+                        </div>
+                        <div class="d-flex mb-3">
+                            <div class="feature-icon bg-success bg-gradient text-white me-3 p-3 rounded">
+                                <i class="fas fa-book"></i>
+                            </div>
+                            <div>
+                                <h5>Exercices interactifs</h5>
+                                <p class="text-muted mb-0">Créez des exercices personnalisés pour vos élèves</p>
+                            </div>
+                        </div>
+                        <div class="d-flex">
+                            <div class="feature-icon bg-info bg-gradient text-white me-3 p-3 rounded">
+                                <i class="fas fa-chart-line"></i>
+                            </div>
+                            <div>
+                                <h5>Suivi des progrès</h5>
+                                <p class="text-muted mb-0">Suivez la progression de vos élèves en temps réel</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container py-5">
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Pour les enseignants</h5>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-check text-success me-2"></i>Créez des classes virtuelles</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Gérez les exercices</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Suivez les progrès</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Pour les élèves</h5>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-check text-success me-2"></i>Accédez aux cours</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Faites des exercices</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Suivez vos résultats</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Avantages</h5>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-check text-success me-2"></i>Interface intuitive</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Accessible partout</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Gratuit</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

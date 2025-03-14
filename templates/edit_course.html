@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block head %}
+<script src="https://cdn.ckeditor.com/ckeditor5/40.1.0/classic/ckeditor.js"></script>
+<style>
+    .editor-container {
+        position: relative;
+        margin-bottom: 20px;
+    }
+
+    .editor-toolbar {
+        padding: 10px;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-bottom: none;
+        border-radius: 4px 4px 0 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+
+    .editor-toolbar-group {
+        display: flex;
+        gap: 5px;
+        align-items: center;
+    }
+
+    .editor-toolbar-separator {
+        width: 1px;
+        height: 24px;
+        background-color: #dee2e6;
+        margin: 0 5px;
+    }
+    
+    .editor-toolbar button {
+        margin-right: 5px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 12px;
+        font-size: 14px;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+        background-color: white;
+        color: #495057;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .editor-toolbar button:hover {
+        background-color: #e9ecef;
+        border-color: #ced4da;
+    }
+
+    .editor-toolbar button.active {
+        background-color: #e9ecef;
+        border-color: #ced4da;
+        box-shadow: inset 0 3px 5px rgba(0,0,0,.125);
+    }
+
+    .preview-mode #courseContent {
+        display: none;
+    }
+
+    .preview-mode #previewContent {
+        display: block;
+    }
+
+    #previewContent {
+        display: none;
+        min-height: 300px;
+        padding: 1rem;
+        border: 1px solid #dee2e6;
+        border-radius: 0 0 4px 4px;
+        background-color: white;
+    }
+    
+    #courseContent {
+        border-radius: 0 0 4px 4px;
+        min-height: 300px;
+        position: relative;
+        padding: 1rem;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        font-size: 16px;
+        line-height: 1.5;
+        border: 1px solid #dee2e6;
+    }
+
+    #courseContent:focus {
+        outline: none;
+        border-color: #80bdff;
+        box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+    }
+
+    .image-resize-controls {
+        display: none;
+        position: absolute;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        z-index: 1000;
+    }
+
+    @media (max-width: 768px) {
+        .editor-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        
+        .editor-toolbar button {
+            flex: 1;
+            min-width: 40px;
+            justify-content: center;
+        }
+
+        .image-resize-controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            border-radius: 0;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block title %}Modifier le cours{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('teacher_dashboard') }}">Tableau de bord</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('view_course', course_id=course.id) }}">{{ course.title }}</a></li>
+                    <li class="breadcrumb-item active">Modifier</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h4 class="mb-0">Modifier le cours</h4>
+        </div>
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data">
+                {{ form.csrf_token }}
+                
+                <div class="mb-3">
+                    {{ form.title.label(class="form-label") }}
+                    {{ form.title(class="form-control" + (" is-invalid" if form.title.errors else "")) }}
+                    {% for error in form.title.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <div class="mb-3">
+                    {{ form.description.label(class="form-label") }}
+                    {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else "")) }}
+                    {% for error in form.description.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <div class="mb-3">
+                    {{ form.content.label(class="form-label") }}
+                    <div class="editor-container">
+                        <div class="editor-toolbar">
+                            <div class="editor-toolbar-group">
+                                <button onclick="formatText('bold')" title="Gras">
+                                    <i class="fas fa-bold"></i>
+                                </button>
+                                <button onclick="formatText('italic')" title="Italique">
+                                    <i class="fas fa-italic"></i>
+                                </button>
+                                <button onclick="formatText('underline')" title="Souligné">
+                                    <i class="fas fa-underline"></i>
+                                </button>
+                            </div>
+                            <div class="editor-toolbar-separator"></div>
+                            <div class="editor-toolbar-group">
+                                <button onclick="formatList('bullet')" title="Liste à puces">
+                                    <i class="fas fa-list-ul"></i>
+                                </button>
+                                <button onclick="formatList('number')" title="Liste numérotée">
+                                    <i class="fas fa-list-ol"></i>
+                                </button>
+                            </div>
+                            <div class="editor-toolbar-separator"></div>
+                            <div class="editor-toolbar-group">
+                                <button onclick="insertImage()" title="Insérer une image">
+                                    <i class="fas fa-image"></i>
+                                </button>
+                                <button id="pasteButton" title="Coller">
+                                    <i class="fas fa-paste"></i>
+                                </button>
+                            </div>
+                            <div class="editor-toolbar-separator"></div>
+                            <div class="editor-toolbar-group">
+                                <button id="previewButton" onclick="togglePreview()" title="Aperçu">
+                                    <i class="fas fa-eye"></i> Aperçu
+                                </button>
+                            </div>
+                        </div>
+
+                        <div style="position: relative;">
+                            <div id="courseContent" contenteditable="true">{{ course.content }}</div>
+                            <div id="previewContent"></div>
+                            <input type="hidden" name="content" id="hiddenContent">
+                        </div>
+                    </div>
+                    {% for error in form.content.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                {% if course.files %}
+                <div class="form-group mb-3">
+                    <h4>Fichiers actuels</h4>
+                    <ul class="list-group">
+                        {% for file in course.files %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ file.filename }}
+                            <div>
+                                <a href="{{ url_for('download_course_file', file_id=file.id) }}" class="btn btn-sm btn-primary">Télécharger</a>
+                                <a href="{{ url_for('delete_course_file', file_id=file.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce fichier ?');">Supprimer</a>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <div class="form-group mb-3">
+                    <label for="files">Ajouter des fichiers</label>
+                    <input type="file" class="form-control" id="files" name="files" multiple>
+                </div>
+
+                <div class="text-end">
+                    <a href="{{ url_for('view_course', course_id=course.id) }}" class="btn btn-secondary">Annuler</a>
+                    {{ form.submit(class="btn btn-primary") }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const courseContent = document.getElementById('courseContent');
+    const previewContent = document.getElementById('previewContent');
+    const hiddenContent = document.getElementById('hiddenContent');
+    const editorContainer = document.querySelector('.editor-container');
+
+    // Synchroniser le contenu avec le champ caché
+    function updateHiddenContent() {
+        hiddenContent.value = courseContent.innerHTML;
+    }
+
+    courseContent.addEventListener('input', updateHiddenContent);
+    courseContent.addEventListener('blur', updateHiddenContent);
+
+    // Mode aperçu
+    window.togglePreview = function() {
+        const previewButton = document.getElementById('previewButton');
+        if (editorContainer.classList.contains('preview-mode')) {
+            editorContainer.classList.remove('preview-mode');
+            previewButton.classList.remove('active');
+            previewButton.innerHTML = '<i class="fas fa-eye"></i> Aperçu';
+        } else {
+            previewContent.innerHTML = courseContent.innerHTML;
+            editorContainer.classList.add('preview-mode');
+            previewButton.classList.add('active');
+            previewButton.innerHTML = '<i class="fas fa-edit"></i> Éditer';
+        }
+    };
+
+    // Fonctions de formatage
+    window.formatText = function(command) {
+        document.execCommand(command, false, null);
+        courseContent.focus();
+        updateHiddenContent();
+    };
+
+    window.formatList = function(type) {
+        const command = type === 'bullet' ? 'insertUnorderedList' : 'insertOrderedList';
+        document.execCommand(command, false, null);
+        courseContent.focus();
+        updateHiddenContent();
+    };
+
+    window.insertImage = function() {
+        const url = prompt('Entrez l\'URL de l\'image :');
+        if (url) {
+            const img = document.createElement('img');
+            img.src = url;
+            img.style.maxWidth = '100%';
+            img.style.height = 'auto';
+            courseContent.focus();
+            document.execCommand('insertHTML', false, img.outerHTML);
+            updateHiddenContent();
+        }
+    };
+
+    // Initialiser le contenu caché
+    updateHiddenContent();
+});
+</script>
+{% endblock %}

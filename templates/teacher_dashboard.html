@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2>Tableau de bord de l'enseignant</h2>
+        </div>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-laptop text-primary mb-3" style="font-size: 2rem;"></i>
+                    <div class="text-primary">Mes Classes</div>
+                    <div style="font-size: 2.5rem;">{{ stats.total_classes if stats else 0 }}</div>
+                    <div class="text-muted small">Classes actives</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-user-graduate text-success mb-3" style="font-size: 2rem;"></i>
+                    <div class="text-success">Mes Élèves</div>
+                    <div style="font-size: 2.5rem;">{{ stats.total_students if stats else 0 }}</div>
+                    <div class="text-muted small">Élèves inscrits</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-tasks text-info mb-3" style="font-size: 2rem;"></i>
+                    <div class="text-info">Mes Exercices</div>
+                    <div style="font-size: 2.5rem;">{{ stats.total_exercises if stats else 0 }}</div>
+                    <div class="text-muted small">Exercices créés</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Classes -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0">Mes Classes</h3>
+                    <a href="{{ url_for('create_class') }}" class="btn btn-primary">Créer une classe</a>
+                </div>
+                <div class="card-body">
+                    {% if classes %}
+                    <div class="row">
+                        {% for class in classes %}
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">{{ class.name }}</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text">{{ class.description }}</p>
+                                    <p class="card-text">
+                                        <small class="text-muted">
+                                            Code d'invitation : <strong>{{ class.invite_code }}</strong><br>
+                                            Nombre d'élèves : <strong>{{ class.students|length }}</strong>
+                                        </small>
+                                    </p>
+                                </div>
+                                <div class="card-footer">
+                                    <div class="btn-group w-100">
+                                        <a href="{{ url_for('view_class', class_id=class.id) }}" class="btn btn-outline-primary">
+                                            <i class="fas fa-eye"></i> Voir
+                                        </a>
+                                        <a href="{{ url_for('create_course', class_id=class.id) }}" class="btn btn-outline-success">
+                                            <i class="fas fa-plus"></i> Nouveau cours
+                                        </a>
+                                        <a href="{{ url_for('edit_class', class_id=class.id) }}" class="btn btn-outline-warning">
+                                            <i class="fas fa-edit"></i> Modifier
+                                        </a>
+                                        <a href="{{ url_for('delete_class', class_id=class.id) }}" class="btn btn-outline-danger" 
+                                           onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette classe ?')">
+                                            <i class="fas fa-trash"></i> Supprimer
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <p class="lead">Vous n'avez pas encore créé de classe.</p>
+                        <p>Commencez par créer une classe pour pouvoir ajouter des cours et des exercices.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

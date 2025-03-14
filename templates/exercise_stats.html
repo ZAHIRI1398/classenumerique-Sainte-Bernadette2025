@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Statistiques des exercices</h2>
+
+    <!-- Statistiques globales -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h5>Nombre total d'exercices</h5>
+                    <h2>{{ overall_stats.total_exercises }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h5>Nombre total de soumissions</h5>
+                    <h2>{{ overall_stats.total_submissions }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h5>Score moyen global</h5>
+                    <h2>{{ "%.1f"|format(overall_stats.average_score * 100) }}%</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Détails par exercice -->
+    <div class="row">
+        {% for stat in exercise_stats %}
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">{{ stat.exercise.title }}</h5>
+                    <div>
+                        <span class="badge bg-primary">{{ stat.submissions_count }} soumissions</span>
+                        <span class="badge bg-success">{{ "%.1f"|format(stat.average_score * 100) }}% score moyen</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Détails des soumissions -->
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Étudiant</th>
+                                    <th>Score</th>
+                                    <th>Date de soumission</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sub in stat.submissions %}
+                                <tr>
+                                    <td>{{ sub.student_name }}</td>
+                                    <td>{{ "%.1f"|format(sub.score * 100) }}%</td>
+                                    <td>{{ sub.submitted_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+.card {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.card-header {
+    background-color: #f8f9fa;
+}
+.badge {
+    margin-left: 8px;
+    padding: 8px 12px;
+}
+.table {
+    margin-bottom: 0;
+}
+.table th {
+    border-top: none;
+}
+</style>
+{% endblock %}

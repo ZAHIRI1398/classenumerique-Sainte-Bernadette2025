@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Mes Exercices</h1>
+    
+    <div class="row mt-4">
+        {% if exercises %}
+            {% for item in exercises %}
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">{{ item.exercise.title }}</h5>
+                        <span class="badge {% if item.attempt and item.attempt.completed %}bg-success{% else %}bg-warning{% endif %}">
+                            {% if item.attempt and item.attempt.completed %}
+                                Terminé
+                            {% else %}
+                                À faire
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">{{ item.exercise.description|truncate(150) }}</p>
+                        <div class="mb-2">
+                            <small class="text-muted">
+                                <i class="fas fa-graduation-cap"></i> {{ item.class.name }}
+                            </small>
+                        </div>
+                        <div class="mb-2">
+                            <small class="text-muted">
+                                <i class="fas fa-star"></i> Points: {{ item.exercise.points }}
+                            </small>
+                        </div>
+                        {% if item.exercise.due_date %}
+                        <div class="mb-2">
+                            <small class="text-muted">
+                                <i class="fas fa-clock"></i> Date limite: {{ item.exercise.due_date|date }}
+                            </small>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="card-footer">
+                        <a href="{{ url_for('view_exercise', exercise_id=item.exercise.id) }}" class="btn btn-primary w-100">
+                            {% if item.attempt and item.attempt.completed %}
+                                Revoir l'exercice
+                            {% else %}
+                                Commencer l'exercice
+                            {% endif %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Vous n'avez pas encore d'exercices à faire.
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

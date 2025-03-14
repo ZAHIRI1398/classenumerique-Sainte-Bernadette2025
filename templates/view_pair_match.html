@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="mb-0">{{ exercise.title }}</h2>
+                    <p class="text-muted mb-0">{{ exercise.description }}</p>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('submit_exercise', exercise_id=exercise.id) }}">
+                        {{ form.csrf_token }}
+                        
+                        <div id="pair-matches" class="mb-4">
+                            {% for pair in exercise.pair_matches %}
+                            <div class="pair-item card mb-3">
+                                <div class="card-body">
+                                    <h5 class="card-title">Paire {{ loop.index }}</h5>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            {% if pair.left_type == 'text' %}
+                                                <p class="mb-2">{{ pair.left_content }}</p>
+                                            {% else %}
+                                                <img src="{{ url_for('static', filename=pair.left_content) }}" 
+                                                     class="img-fluid mb-2" alt="Image gauche">
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-6">
+                                            {% if not is_teacher %}
+                                                <div class="mb-3">
+                                                    <label class="form-label">Votre réponse</label>
+                                                    <input type="text" class="form-control" 
+                                                           name="answer_{{ loop.index0 }}" 
+                                                           {% if user_submission %}
+                                                           value="{{ user_submission.answers[loop.index0|string] }}"
+                                                           disabled
+                                                           {% endif %}
+                                                           required>
+                                                </div>
+                                            {% else %}
+                                                {% if pair.right_type == 'text' %}
+                                                    <p class="mb-2">{{ pair.right_content }}</p>
+                                                {% else %}
+                                                    <img src="{{ url_for('static', filename=pair.right_content) }}" 
+                                                         class="img-fluid mb-2" alt="Image droite">
+                                                {% endif %}
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        {% if not is_teacher and not user_submission %}
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i> Soumettre
+                            </button>
+                        {% endif %}
+
+                        {% if user_submission %}
+                            <div class="alert {% if user_submission.score >= 50 %}alert-success{% else %}alert-danger{% endif %}">
+                                Score : {{ "%.2f"|format(user_submission.score) }}%
+                            </div>
+                            {% if user_submission.feedback %}
+                                <div class="alert alert-info">
+                                    <h5>Feedback de l'enseignant :</h5>
+                                    {{ user_submission.feedback }}
+                                </div>
+                            {% endif %}
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

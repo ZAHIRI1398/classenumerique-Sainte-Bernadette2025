@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Statistiques détaillées de l'exercice{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">{{ exercise.title }}</h1>
+
+    <!-- Résumé des statistiques -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Nombre total de soumissions</h5>
+                    <p class="card-text display-4">{{ total_submissions }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Soumissions valides</h5>
+                    <p class="card-text display-4">{{ valid_submissions }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Score moyen</h5>
+                    <p class="card-text display-4">{{ "%.1f"|format(average_score|default(0)) }}%</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liste des soumissions -->
+    <div class="card">
+        <div class="card-header">
+            <h3>Détails des soumissions</h3>
+        </div>
+        <div class="card-body">
+            {% if submission_details %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Élève</th>
+                            <th>Score</th>
+                            <th>Date de soumission</th>
+                            <th>Réponses</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for submission in submission_details|sort(attribute='score', reverse=true) %}
+                        <tr>
+                            <td>{{ submission.student_name }}</td>
+                            <td>{{ "%.1f"|format(submission.score|default(0)) }}%</td>
+                            <td>{{ submission.submitted_at }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-info" type="button" 
+                                        data-bs-toggle="collapse" 
+                                        data-bs-target="#answers-{{ loop.index }}" 
+                                        aria-expanded="false">
+                                    <i class="fas fa-eye"></i> Voir les réponses
+                                </button>
+                                <div class="collapse mt-2" id="answers-{{ loop.index }}">
+                                    <div class="card card-body">
+                                        <pre>{{ submission.answers|tojson(indent=2) }}</pre>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">Aucune soumission trouvée.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <a href="{{ url_for('exercise_stats') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour aux statistiques globales
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}

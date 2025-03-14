@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0">{{ course.title }}</h3>
+                    {% if current_user == course.class_.teacher %}
+                    <div>
+                        <a href="{{ url_for('edit_course', course_id=course.id) }}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-edit"></i> Modifier
+                        </a>
+                        <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteCourseModal">
+                            <i class="fas fa-trash"></i> Supprimer
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if course.description %}
+                    <p class="card-text">{{ course.description }}</p>
+                    {% endif %}
+                    
+                    {% if course.content %}
+                    <div class="course-content mt-4">
+                        <style>
+                            .course-content {
+                                font-size: 1rem;
+                                line-height: 1.6;
+                                color: #333;
+                                background: #fff;
+                                padding: 20px;
+                                border-radius: 8px;
+                                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                            }
+                            .course-content img {
+                                max-width: 100%;
+                                height: auto;
+                                display: block;
+                                margin: 1rem auto;
+                                border-radius: 4px;
+                            }
+                            .course-content h1, .course-content h2, .course-content h3 {
+                                color: #2c3e50;
+                                margin-top: 1.5rem;
+                                margin-bottom: 1rem;
+                                font-weight: 600;
+                            }
+                            .course-content p {
+                                margin-bottom: 1rem;
+                                text-align: justify;
+                            }
+                            .course-content ul, .course-content ol {
+                                margin-bottom: 1rem;
+                                padding-left: 2rem;
+                            }
+                            .course-content a {
+                                color: #3498db;
+                                text-decoration: none;
+                            }
+                            .course-content a:hover {
+                                text-decoration: underline;
+                            }
+                            .course-content blockquote {
+                                border-left: 4px solid #3498db;
+                                padding-left: 1rem;
+                                margin: 1rem 0;
+                                color: #666;
+                            }
+                            .course-content pre, .course-content code {
+                                background: #f8f9fa;
+                                padding: 0.2rem 0.4rem;
+                                border-radius: 4px;
+                                font-family: monospace;
+                            }
+                            @media (max-width: 768px) {
+                                .course-content {
+                                    padding: 15px;
+                                }
+                                .course-content img {
+                                    margin: 0.5rem auto;
+                                }
+                            }
+                        </style>
+                        <div class="content-display">
+                            {{ course.content|safe }}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <ul class="list-unstyled mt-3">
+                        <li><strong>Classe :</strong> {{ course.class_.name }}</li>
+                        <li><strong>Créé par :</strong> {{ course.class_.teacher.username }}</li>
+                        <li><strong>Date de création :</strong> {{ course.created_at.strftime('%d/%m/%Y') }}</li>
+                        {% if current_user == course.class_.teacher %}
+                        <li class="mt-2">
+                            <strong>Code d'invitation :</strong> 
+                            <span class="badge bg-primary">{{ course.class_.invite_code }}</span>
+                            <button class="btn btn-sm btn-outline-primary ms-2" onclick="copyToClipboard('{{ course.class_.invite_code }}')">
+                                <i class="fas fa-copy"></i> Copier
+                            </button>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Liste des exercices -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Exercices</h4>
+                    {% if current_user == course.class_.teacher %}
+                    <div>
+                        <a href="{{ url_for('create_exercise', course_id=course.id) }}" class="btn btn-success btn-sm">
+                            <i class="fas fa-plus"></i> Nouvel exercice
+                        </a>
+                        <a href="{{ url_for('exercise_library') }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-book"></i> Bibliothèque d'exercices
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if course.exercises %}
+                    <div class="list-group">
+                        {% for exercise in course.exercises %}
+                        <a href="{{ url_for('view_exercise', exercise_id=exercise.id) }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h5 class="mb-1">{{ exercise.title }}</h5>
+                                {% if exercise.due_date %}
+                                <small class="text-muted">Date limite : {{ exercise.due_date.strftime('%d/%m/%Y') }}</small>
+                                {% endif %}
+                            </div>
+                            {% if exercise.description %}
+                            <p class="mb-1">{{ exercise.description }}</p>
+                            {% endif %}
+                            {% if current_user == course.class_.teacher %}
+                            <div class="btn-group">
+                                <a href="{{ url_for('edit_qcm', exercise_id=exercise.id) if exercise.exercise_type == 'qcm' else url_for('edit_holes', exercise_id=exercise.id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <form action="{{ url_for('delete_exercise', exercise_id=exercise.id) }}" method="POST" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                            onclick="return confirm('Êtes-vous sûr de vouloir supprimer cet exercice ?')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                            {% endif %}
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted">Aucun exercice n'a encore été créé pour ce cours.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Fichiers du cours -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Fichiers du cours</h4>
+                    {% if current_user == course.class_.teacher %}
+                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#uploadFileModal">
+                        <i class="fas fa-upload"></i> Ajouter
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if course.files %}
+                    <div class="list-group">
+                        {% for file in course.files %}
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">{{ file.filename }}</h6>
+                                    <small class="text-muted">Ajouté le {{ file.uploaded_at.strftime('%d/%m/%Y') }}</small>
+                                </div>
+                                <div>
+                                    <a href="{{ url_for('download_course_file', file_id=file.id) }}" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                    {% if current_user == course.class_.teacher %}
+                                    <form action="{{ url_for('delete_course_file', file_id=file.id) }}" method="POST" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                                onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce fichier ?')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted">Aucun fichier n'a encore été ajouté à ce cours.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de suppression du cours -->
+{% if current_user == course.class_.teacher %}
+<div class="modal fade" id="deleteCourseModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmer la suppression</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer le cours "{{ course.title }}" ? Cette action est irréversible.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form action="{{ url_for('delete_course', course_id=course.id) }}" method="POST" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal d'upload de fichier -->
+<div class="modal fade" id="uploadFileModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ajouter un fichier</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('upload_course_file', course_id=course.id) }}" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Sélectionner un fichier</label>
+                        <input type="file" class="form-control" id="file" name="file" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Télécharger</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock content %}
+
+{% block scripts %}
+<script>
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        // Créer une alerte temporaire
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-success position-fixed top-0 start-50 translate-middle-x mt-3';
+        alert.style.zIndex = '1050';
+        alert.textContent = 'Code copié dans le presse-papiers !';
+        document.body.appendChild(alert);
+        
+        // Supprimer l'alerte après 2 secondes
+        setTimeout(() => {
+            alert.remove();
+        }, 2000);
+    }).catch(function(err) {
+        console.error('Erreur lors de la copie :', err);
+    });
+}
+</script>
+{% endblock %}

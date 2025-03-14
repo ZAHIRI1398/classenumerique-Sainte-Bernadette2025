@@ -1,0 +1,316 @@
+.image-preview-container {
+    position: relative;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: #f8f9fa;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.image-preview {
+    position: relative;
+    width: 100%;
+    height: auto;
+    display: block;
+    overflow: hidden;
+    touch-action: none; /* Empêche le scroll sur mobile lors du zoom */
+}
+
+.image-preview img {
+    width: 100%;
+    height: auto;
+    display: block;
+    transform-origin: center;
+    transition: transform 0.2s ease;
+    will-change: transform;
+}
+
+.annotation-markers {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    transform-origin: center;
+    will-change: transform;
+}
+
+.annotation-marker {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    margin-left: -12px;
+    margin-top: -12px;
+    background-color: #dc3545;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    cursor: grab;
+    pointer-events: auto;
+    z-index: 100;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: all 0.2s ease;
+    will-change: transform;
+    touch-action: none;
+}
+
+.annotation-marker:hover,
+.annotation-marker:focus {
+    transform: scale(1.2);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    background-color: #c82333;
+    outline: none;
+}
+
+.annotation-marker.dragging {
+    transform: scale(1.2);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+    background-color: #bd2130;
+    cursor: grabbing;
+    z-index: 101;
+}
+
+.annotation-label {
+    position: absolute;
+    top: -35px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #fff;
+    color: #000;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 14px;
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    z-index: 102;
+    opacity: 0.9;
+    transition: opacity 0.2s ease;
+}
+
+.annotation-marker:hover .annotation-label,
+.annotation-marker.dragging .annotation-label {
+    opacity: 1;
+}
+
+.annotation-list {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 1.5rem;
+    padding: 1.25rem;
+    background-color: #fff;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.annotation-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    margin-bottom: 10px;
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.annotation-item:last-child {
+    margin-bottom: 0;
+}
+
+.annotation-item:hover {
+    border-color: #dc3545;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+}
+
+.annotation-text {
+    flex: 1;
+}
+
+.annotation-text input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.annotation-text input:hover {
+    border-color: #adb5bd;
+}
+
+.annotation-text input:focus {
+    outline: none;
+    border-color: #dc3545;
+    box-shadow: 0 0 0 3px rgba(220,53,69,0.25);
+}
+
+.btn-group {
+    display: flex;
+    gap: 6px;
+}
+
+.btn-group button {
+    padding: 6px 12px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.btn-group button:hover {
+    transform: translateY(-1px);
+}
+
+/* Style pour l'image uploadée */
+.image-upload-container {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+.image-upload-dropzone {
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    background-color: #f8f9fa;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.image-upload-dropzone.drag-over {
+    background-color: #e9ecef;
+    border-color: #dc3545;
+    transform: scale(1.01);
+}
+
+.upload-message {
+    color: #495057;
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+}
+
+.upload-message i {
+    color: #dc3545;
+    font-size: 2rem;
+    margin-bottom: 1rem;
+}
+
+.zoom-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    gap: 5px;
+    z-index: 1000;
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 5px;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.zoom-controls button {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #dee2e6;
+    background-color: #fff;
+    color: #495057;
+    transition: all 0.2s ease;
+}
+
+.zoom-controls button:hover {
+    background-color: #e9ecef;
+    border-color: #adb5bd;
+    transform: translateY(-1px);
+}
+
+.zoom-controls button:active {
+    background-color: #dee2e6;
+    transform: translateY(0);
+}
+
+.zoom-controls button i {
+    font-size: 14px;
+}
+
+/* Support du zoom et des gestes tactiles */
+.image-preview.zooming {
+    cursor: zoom-in;
+}
+
+.image-preview.zooming-out {
+    cursor: zoom-out;
+}
+
+/* Animation des transitions */
+@keyframes marker-pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+.annotation-marker.new {
+    animation: marker-pulse 0.5s ease;
+}
+
+/* Amélioration de l'accessibilité */
+.annotation-marker:focus-visible {
+    outline: 3px solid #dc3545;
+    outline-offset: 2px;
+}
+
+.annotation-text input:focus-visible {
+    outline: 3px solid #dc3545;
+    outline-offset: 2px;
+}
+
+/* Styles responsifs */
+@media (max-width: 768px) {
+    .zoom-controls {
+        top: 5px;
+        right: 5px;
+    }
+
+    .zoom-controls button {
+        width: 28px;
+        height: 28px;
+    }
+
+    .zoom-controls button i {
+        font-size: 12px;
+    }
+
+    .annotation-marker {
+        width: 32px;
+        height: 32px;
+        margin-left: -16px;
+        margin-top: -16px;
+    }
+
+    .annotation-label {
+        font-size: 12px;
+        padding: 4px 8px;
+        top: -30px;
+    }
+
+    .annotation-item {
+        padding: 10px;
+    }
+
+    .btn-group button {
+        padding: 8px;
+    }
+
+    .upload-message {
+        font-size: 1rem;
+    }
+}

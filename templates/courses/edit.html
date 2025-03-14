@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Modifier' if course else 'Créer' }} un cours{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('teacher_dashboard') }}">Tableau de bord</a></li>
+            <li class="breadcrumb-item active">{{ 'Modifier' if course else 'Créer' }} un cours</li>
+        </ol>
+    </nav>
+
+    <div class="card">
+        <div class="card-header">
+            <h2 class="mb-0">{{ 'Modifier' if course else 'Créer' }} un cours</h2>
+        </div>
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data">
+                {{ form.csrf_token }}
+                
+                <div class="mb-3">
+                    {{ form.title.label(class="form-label") }}
+                    {{ form.title(class="form-control") }}
+                    {% if form.title.errors %}
+                        {% for error in form.title.errors %}
+                            <div class="text-danger">{{ error }}</div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    {{ form.description.label(class="form-label") }}
+                    {{ form.description(class="form-control", rows=3) }}
+                    {% if form.description.errors %}
+                        {% for error in form.description.errors %}
+                            <div class="text-danger">{{ error }}</div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    {{ form.content.label(class="form-label") }}
+                    {{ form.content(id="editor", class="form-control") }}
+                    {% if form.content.errors %}
+                        {% for error in form.content.errors %}
+                            <div class="text-danger">{{ error }}</div>
+                        {% endfor %}
+                    {% endif %}
+                    <small class="text-muted">
+                        Utilisez l'éditeur ci-dessus pour formater votre contenu. Vous pouvez :
+                        <ul>
+                            <li>Mettre en forme le texte (gras, italique, souligné)</li>
+                            <li>Créer des listes à puces ou numérotées</li>
+                            <li>Insérer des liens</li>
+                            <li>Ajouter des tableaux</li>
+                            <li>Et plus encore...</li>
+                        </ul>
+                    </small>
+                </div>
+
+                <div class="mb-3">
+                    {{ form.files.label(class="form-label") }}
+                    {{ form.files(class="form-control", multiple=true, accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.mp4") }}
+                    {% if form.files.errors %}
+                        {% for error in form.files.errors %}
+                            <div class="text-danger">{{ error }}</div>
+                        {% endfor %}
+                    {% endif %}
+                    <small class="text-muted">
+                        Formats supportés : PDF, Word, Images (JPG, PNG, GIF), Vidéos (MP4)
+                    </small>
+                </div>
+
+                {% if course and course.files %}
+                <div class="mb-3">
+                    <label class="form-label">Fichiers actuels</label>
+                    <div class="list-group">
+                        {% for file in course.files %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                {% if file.file_type == 'image' %}
+                                    <i class="fas fa-image text-primary"></i>
+                                {% elif file.file_type == 'pdf' %}
+                                    <i class="fas fa-file-pdf text-danger"></i>
+                                {% elif file.file_type == 'video' %}
+                                    <i class="fas fa-video text-success"></i>
+                                {% else %}
+                                    <i class="fas fa-file text-secondary"></i>
+                                {% endif %}
+                                {{ file.filename }}
+                            </div>
+                            <div class="btn-group">
+                                <a href="{{ url_for('download_course_file', file_id=file.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-download"></i>
+                                </a>
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteFile({{ file.id }})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('teacher_dashboard') }}" class="btn btn-secondary">Annuler</a>
+                    {{ form.submit(class="btn btn-primary") }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- CKEditor -->
+<script src="https://cdn.ckeditor.com/ckeditor5/40.0.0/classic/ckeditor.js"></script>
+<script>
+    ClassicEditor
+        .create(document.querySelector('#editor'), {
+            toolbar: ['undo', 'redo', '|',
+                'heading', '|',
+                'bold', 'italic', 'link', '|',
+                'bulletedList', 'numberedList', '|',
+                'insertTable', '|',
+                'uploadImage', '|',
+                'blockQuote'
+            ],
+            language: 'fr'
+        })
+        .catch(error => {
+            console.error(error);
+        });
+
+    function deleteFile(fileId) {
+        if (confirm('Êtes-vous sûr de vouloir supprimer ce fichier ?')) {
+            fetch(`/course/file/${fileId}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    alert('Erreur lors de la suppression du fichier');
+                }
+            });
+        }
+    }
+</script>
+{% endblock %}

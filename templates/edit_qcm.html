@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Accueil</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('view_class', class_id=exercise.course.class_.id) }}">{{ exercise.course.class_.name }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('view_course', course_id=exercise.course.id) }}">{{ exercise.course.title }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('view_exercise', exercise_id=exercise.id) }}">{{ exercise.title }}</a></li>
+            <li class="breadcrumb-item active">Éditer l'exercice</li>
+        </ol>
+    </nav>
+
+    <h1>Éditer le QCM</h1>
+    <p class="lead">{{ exercise.description }}</p>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div id="questions-container">
+            {% if exercise.questions %}
+                {% for question in exercise.questions|sort(attribute='position') %}
+                <div class="question-form mb-4 border p-3 rounded" data-question-index="{{ loop.index0 }}">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="mb-0">Question #{{ loop.index }}</h5>
+                        <button type="button" class="btn btn-danger btn-sm remove-question">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Texte de la question</label>
+                        <textarea name="question_text_{{ loop.index0 }}" class="form-control" rows="2" required>{{ question.text }}</textarea>
+                    </div>
+                    <div class="choices-container">
+                        {% for choice in question.choices|sort(attribute='position') %}
+                        <div class="choice-form mb-3">
+                            <div class="input-group">
+                                <div class="input-group-text">
+                                    <input type="checkbox" name="is_correct_{{ question.id }}_{{ choice.id }}" 
+                                           {% if choice.is_correct %}checked{% endif %}>
+                                </div>
+                                <input type="text" name="choice_text_{{ question.id }}_{{ choice.id }}" 
+                                       class="form-control" value="{{ choice.text }}" required>
+                                <button type="button" class="btn btn-outline-danger remove-choice">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm add-choice">
+                        <i class="fas fa-plus"></i> Ajouter une réponse
+                    </button>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="question-form mb-4 border p-3 rounded" data-question-index="0">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="mb-0">Question #1</h5>
+                        <button type="button" class="btn btn-danger btn-sm remove-question">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Texte de la question</label>
+                        <textarea name="question_text_0" class="form-control" rows="2" required></textarea>
+                    </div>
+                    <div class="choices-container">
+                        <div class="choice-form mb-3">
+                            <div class="input-group">
+                                <div class="input-group-text">
+                                    <input type="checkbox" name="is_correct_0_0">
+                                </div>
+                                <input type="text" name="choice_text_0_0" class="form-control" required>
+                                <button type="button" class="btn btn-outline-danger remove-choice">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm add-choice">
+                        <i class="fas fa-plus"></i> Ajouter une réponse
+                    </button>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="mb-3">
+            <button type="button" class="btn btn-secondary" id="add-question">
+                <i class="fas fa-plus"></i> Ajouter une question
+            </button>
+        </div>
+
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+            <a href="{{ url_for('view_exercise', exercise_id=exercise.id) }}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+</div>
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('questions-container');
+    const addQuestionButton = document.getElementById('add-question');
+
+    // Ajouter une nouvelle question
+    addQuestionButton.addEventListener('click', function() {
+        const questions = container.getElementsByClassName('question-form');
+        const newQuestionIndex = questions.length;
+        
+        const questionDiv = document.createElement('div');
+        questionDiv.className = 'question-form mb-4 border p-3 rounded';
+        questionDiv.dataset.questionIndex = newQuestionIndex;
+        questionDiv.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="mb-0">Question #${newQuestionIndex + 1}</h5>
+                <button type="button" class="btn btn-danger btn-sm remove-question">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Texte de la question</label>
+                <textarea name="question_text_${newQuestionIndex}" class="form-control" rows="2" required></textarea>
+            </div>
+            <div class="choices-container">
+                <div class="choice-form mb-3">
+                    <div class="input-group">
+                        <div class="input-group-text">
+                            <input type="checkbox" name="is_correct_${newQuestionIndex}_0">
+                        </div>
+                        <input type="text" name="choice_text_${newQuestionIndex}_0" class="form-control" required>
+                        <button type="button" class="btn btn-outline-danger remove-choice">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm add-choice">
+                <i class="fas fa-plus"></i> Ajouter une réponse
+            </button>
+        `;
+        
+        container.appendChild(questionDiv);
+        updateQuestionNumbers();
+    });
+
+    // Supprimer une question
+    container.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-question') || e.target.closest('.remove-question')) {
+            const questionForm = e.target.closest('.question-form');
+            if (container.getElementsByClassName('question-form').length > 1) {
+                questionForm.remove();
+                updateQuestionNumbers();
+            }
+        }
+    });
+
+    // Ajouter une réponse
+    container.addEventListener('click', function(e) {
+        if (e.target.classList.contains('add-choice') || e.target.closest('.add-choice')) {
+            const button = e.target.closest('.add-choice');
+            const questionForm = button.closest('.question-form');
+            const questionIndex = questionForm.dataset.questionIndex;
+            const choicesContainer = questionForm.querySelector('.choices-container');
+            const choiceIndex = choicesContainer.children.length;
+            
+            const choiceDiv = document.createElement('div');
+            choiceDiv.className = 'choice-form mb-3';
+            choiceDiv.innerHTML = `
+                <div class="input-group">
+                    <div class="input-group-text">
+                        <input type="checkbox" name="is_correct_${questionIndex}_${choiceIndex}">
+                    </div>
+                    <input type="text" name="choice_text_${questionIndex}_${choiceIndex}" class="form-control" required>
+                    <button type="button" class="btn btn-outline-danger remove-choice">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            
+            choicesContainer.appendChild(choiceDiv);
+        }
+    });
+
+    // Supprimer une réponse
+    container.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-choice') || e.target.closest('.remove-choice')) {
+            const choiceForm = e.target.closest('.choice-form');
+            const choicesContainer = choiceForm.closest('.choices-container');
+            if (choicesContainer.children.length > 1) {
+                choiceForm.remove();
+            }
+        }
+    });
+
+    // Mettre à jour les numéros des questions
+    function updateQuestionNumbers() {
+        const questions = container.getElementsByClassName('question-form');
+        Array.from(questions).forEach((question, index) => {
+            question.querySelector('h5').textContent = `Question #${index + 1}`;
+            question.dataset.questionIndex = index;
+        });
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}

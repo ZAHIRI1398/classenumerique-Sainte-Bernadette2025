@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Accueil</a></li>
+            {% if exercise.course %}
+                {% if exercise.course.class_ %}
+                <li class="breadcrumb-item"><a href="{{ url_for('view_class', class_id=exercise.course.class_.id) }}">{{ exercise.course.class_.name }}</a></li>
+                {% endif %}
+                <li class="breadcrumb-item"><a href="{{ url_for('view_course', course_id=exercise.course.id) }}">{{ exercise.course.title }}</a></li>
+            {% endif %}
+            <li class="breadcrumb-item active" aria-current="page">Modifier l'exercice</li>
+        </ol>
+    </nav>
+
+    <h2>Modifier l'exercice</h2>
+
+    <form method="POST" enctype="multipart/form-data">
+        {{ form.hidden_tag() }}
+        
+        <div class="mb-3">
+            {{ form.title.label(class="form-label") }}
+            {{ form.title(class="form-control") }}
+            {% if form.title.errors %}
+                {% for error in form.title.errors %}
+                    <div class="alert alert-danger">{{ error }}</div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        <div class="mb-3">
+            {{ form.description.label(class="form-label") }}
+            {{ form.description(class="form-control") }}
+            {% if form.description.errors %}
+                {% for error in form.description.errors %}
+                    <div class="alert alert-danger">{{ error }}</div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        <div class="mb-3">
+            {{ form.subject.label(class="form-label") }}
+            {{ form.subject(class="form-control") }}
+            {% if form.subject.errors %}
+                {% for error in form.subject.errors %}
+                    <div class="alert alert-danger">{{ error }}</div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        <div class="mb-3">
+            {{ form.level.label(class="form-label") }}
+            {{ form.level(class="form-control") }}
+            {% if form.level.errors %}
+                {% for error in form.level.errors %}
+                    <div class="alert alert-danger">{{ error }}</div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        <div class="mb-3">
+            {{ form.difficulty.label(class="form-label") }}
+            {{ form.difficulty(class="form-control") }}
+            {% if form.difficulty.errors %}
+                {% for error in form.difficulty.errors %}
+                    <div class="alert alert-danger">{{ error }}</div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        <div class="mb-3">
+            {{ form.points.label(class="form-label") }}
+            {{ form.points(class="form-control") }}
+            {% if form.points.errors %}
+                {% for error in form.points.errors %}
+                    <div class="alert alert-danger">{{ error }}</div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        <div class="mb-3">
+            {{ form.image.label(class="form-label") }}
+            {{ form.image(class="form-control") }}
+            {% if form.image.errors %}
+                {% for error in form.image.errors %}
+                    <div class="alert alert-danger">{{ error }}</div>
+                {% endfor %}
+            {% endif %}
+            {% if exercise.image %}
+                <div class="mt-2">
+                    <p>Image actuelle :</p>
+                    <img src="{{ url_for('static', filename=exercise.image_path) }}" 
+                         class="img-fluid" style="max-width: 200px;" alt="Image de l'exercice">
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="mb-3">
+            {{ form.exercise_type.label(class="form-label") }}
+            {{ form.exercise_type(class="form-control") }}
+            {% if form.exercise_type.errors %}
+                {% for error in form.exercise_type.errors %}
+                    <div class="alert alert-danger">{{ error }}</div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        <div id="pair-matches-container" class="mb-3" style="display: none;">
+            <h4>Paires à associer</h4>
+            {% for pair_form in form.pair_matches %}
+                <div class="pair-match-form card mb-3 p-3">
+                    {{ pair_form.hidden_tag() }}
+                    
+                    <div class="row">
+                        <div class="col-md-5">
+                            <h5>Élément de gauche</h5>
+                            <div class="mb-2">
+                                {{ pair_form.left_type.label(class="form-label") }}
+                                {{ pair_form.left_type(class="form-control") }}
+                            </div>
+                            <div class="mb-2 left-content-text">
+                                {{ pair_form.left_content.label(class="form-label") }}
+                                {{ pair_form.left_content(class="form-control") }}
+                            </div>
+                            <div class="mb-2 left-content-image" style="display: none;">
+                                {{ pair_form.left_image.label(class="form-label") }}
+                                {{ pair_form.left_image(class="form-control") }}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-5">
+                            <h5>Élément de droite</h5>
+                            <div class="mb-2">
+                                {{ pair_form.right_type.label(class="form-label") }}
+                                {{ pair_form.right_type(class="form-control") }}
+                            </div>
+                            <div class="mb-2 right-content-text">
+                                {{ pair_form.right_content.label(class="form-label") }}
+                                {{ pair_form.right_content(class="form-control") }}
+                            </div>
+                            <div class="mb-2 right-content-image" style="display: none;">
+                                {{ pair_form.right_image.label(class="form-label") }}
+                                {{ pair_form.right_image(class="form-control") }}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <button type="button" class="btn btn-danger remove-pair">Supprimer</button>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+            
+            <button type="button" class="btn btn-success" id="add-pair">Ajouter une paire</button>
+        </div>
+
+        <div class="mb-3">
+            <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+            <a href="{{ url_for('view_exercise', exercise_id=exercise.id) }}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Show/hide pair matches container based on exercise type
+    document.addEventListener('DOMContentLoaded', function() {
+        const exerciseTypeSelect = document.querySelector('#exercise_type');
+        const pairMatchesContainer = document.querySelector('#pair-matches-container');
+        
+        function togglePairMatches() {
+            if (exerciseTypeSelect.value === 'PAIR_MATCH') {
+                pairMatchesContainer.style.display = 'block';
+            } else {
+                pairMatchesContainer.style.display = 'none';
+            }
+        }
+        
+        exerciseTypeSelect.addEventListener('change', togglePairMatches);
+        togglePairMatches(); // Initial state
+        
+        // Handle content type changes
+        document.querySelectorAll('.pair-match-form').forEach(form => {
+            const leftType = form.querySelector('[id$="left_type"]');
+            const rightType = form.querySelector('[id$="right_type"]');
+            
+            function updateContentVisibility(type, side) {
+                const textDiv = form.querySelector(`${side}-content-text`);
+                const imageDiv = form.querySelector(`${side}-content-image`);
+                
+                if (type === 'text') {
+                    textDiv.style.display = 'block';
+                    imageDiv.style.display = 'none';
+                } else {
+                    textDiv.style.display = 'none';
+                    imageDiv.style.display = 'block';
+                }
+            }
+            
+            leftType.addEventListener('change', () => updateContentVisibility(leftType.value, '.left'));
+            rightType.addEventListener('change', () => updateContentVisibility(rightType.value, '.right'));
+            
+            // Initial state
+            updateContentVisibility(leftType.value, '.left');
+            updateContentVisibility(rightType.value, '.right');
+        });
+        
+        // Add new pair
+        document.querySelector('#add-pair').addEventListener('click', function() {
+            const template = document.querySelector('.pair-match-form').cloneNode(true);
+            template.querySelectorAll('input').forEach(input => {
+                input.value = '';
+                // Update input IDs and names
+                const newIndex = document.querySelectorAll('.pair-match-form').length;
+                input.id = input.id.replace('-0-', `-${newIndex}-`);
+                input.name = input.name.replace('-0-', `-${newIndex}-`);
+            });
+            
+            // Add before the add button
+            this.parentNode.insertBefore(template, this);
+        });
+        
+        // Remove pair
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('remove-pair')) {
+                const forms = document.querySelectorAll('.pair-match-form');
+                if (forms.length > 1) {
+                    e.target.closest('.pair-match-form').remove();
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

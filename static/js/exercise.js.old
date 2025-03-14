@@ -1,0 +1,166 @@
+document.addEventListener('DOMContentLoaded', function() {
+    const exerciseType = document.getElementById('exercise_type');
+    const exerciseSections = document.querySelectorAll('.exercise-section');
+
+    // Gestion du changement de type d'exercice
+    exerciseType.addEventListener('change', function() {
+        // Cacher toutes les sections
+        exerciseSections.forEach(section => section.style.display = 'none');
+        
+        // Afficher la section correspondante
+        const selectedSection = document.getElementById(`${this.value}-section`);
+        if (selectedSection) {
+            selectedSection.style.display = 'block';
+        }
+    });
+
+    // Initialiser l'affichage au chargement
+    const initialSection = document.getElementById(`${exerciseType.value}-section`);
+    if (initialSection) {
+        initialSection.style.display = 'block';
+    }
+
+    // Gestion des questions QCM
+    const addQuestionBtn = document.getElementById('add-question');
+    if (addQuestionBtn) {
+        let questionCounter = 0;
+        
+        addQuestionBtn.addEventListener('click', function() {
+            const template = document.getElementById('question-template');
+            const container = document.getElementById('questions-container');
+            const clone = template.content.cloneNode(true);
+            
+            // Remplacer l'index
+            const elements = clone.querySelectorAll('[name*="{index}"]');
+            elements.forEach(el => {
+                el.name = el.name.replace('{index}', questionCounter);
+            });
+            
+            // Ajouter les choix initiaux
+            const choicesList = clone.querySelector('.choices-list');
+            for (let i = 0; i < 4; i++) {
+                addChoice(choicesList, questionCounter, i);
+            }
+            
+            // Gérer la suppression
+            const removeBtn = clone.querySelector('.remove-question');
+            removeBtn.addEventListener('click', function() {
+                this.closest('.question-block').remove();
+            });
+            
+            container.appendChild(clone);
+            questionCounter++;
+        });
+        
+        // Ajouter une première question au chargement
+        addQuestionBtn.click();
+    }
+
+    // Fonction pour ajouter un choix à une question
+    function addChoice(container, questionIndex, choiceIndex) {
+        const choiceDiv = document.createElement('div');
+        choiceDiv.className = 'choice-item d-flex align-items-center mb-2';
+        choiceDiv.innerHTML = `
+            <input type="text" class="form-control me-2" 
+                   name="questions-${questionIndex}-choices-${choiceIndex}" 
+                   placeholder="Réponse ${choiceIndex + 1}" required>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" 
+                       name="questions-${questionIndex}-correct" 
+                       value="${choiceIndex}" ${choiceIndex === 0 ? 'checked' : ''}>
+                <label class="form-check-label">Correcte</label>
+            </div>
+        `;
+        container.appendChild(choiceDiv);
+    }
+
+    // Gestion des affirmations Vrai/Faux
+    const addStatementBtn = document.getElementById('add-statement');
+    if (addStatementBtn) {
+        let statementCounter = 0;
+        
+        addStatementBtn.addEventListener('click', function() {
+            const template = document.getElementById('true-false-template');
+            const container = document.getElementById('true-false-container');
+            const clone = template.content.cloneNode(true);
+            
+            // Remplacer l'index
+            const elements = clone.querySelectorAll('[name*="{index}"]');
+            elements.forEach(el => {
+                el.name = el.name.replace('{index}', statementCounter);
+            });
+            
+            // Gérer la suppression
+            const removeBtn = clone.querySelector('.remove-statement');
+            removeBtn.addEventListener('click', function() {
+                this.closest('.statement-block').remove();
+            });
+            
+            container.appendChild(clone);
+            statementCounter++;
+        });
+        
+        // Ajouter une première affirmation au chargement
+        addStatementBtn.click();
+    }
+
+    // Gestion des paires de correspondance
+    const addMatchingBtn = document.getElementById('add-matching');
+    if (addMatchingBtn) {
+        let matchingCounter = 0;
+        
+        addMatchingBtn.addEventListener('click', function() {
+            const template = document.getElementById('matching-template');
+            const container = document.getElementById('matching-container');
+            const clone = template.content.cloneNode(true);
+            
+            // Remplacer l'index
+            const elements = clone.querySelectorAll('[name*="{index}"]');
+            elements.forEach(el => {
+                el.name = el.name.replace('{index}', matchingCounter);
+            });
+            
+            // Gérer la suppression
+            const removeBtn = clone.querySelector('.remove-matching');
+            removeBtn.addEventListener('click', function() {
+                this.closest('.matching-block').remove();
+            });
+            
+            container.appendChild(clone);
+            matchingCounter++;
+        });
+        
+        // Ajouter une première paire au chargement
+        addMatchingBtn.click();
+    }
+
+    // Gestion des éléments à ordonner
+    const addOrderingBtn = document.getElementById('add-ordering');
+    if (addOrderingBtn) {
+        let orderingCounter = 0;
+        
+        addOrderingBtn.addEventListener('click', function() {
+            const template = document.getElementById('ordering-template');
+            const container = document.getElementById('ordering-container');
+            const clone = template.content.cloneNode(true);
+            
+            // Remplacer l'index
+            const elements = clone.querySelectorAll('[name*="{index}"]');
+            elements.forEach(el => {
+                el.name = el.name.replace('{index}', orderingCounter);
+            });
+            
+            // Gérer la suppression
+            const removeBtn = clone.querySelector('.remove-ordering');
+            removeBtn.addEventListener('click', function() {
+                this.closest('.ordering-block').remove();
+            });
+            
+            container.appendChild(clone);
+            orderingCounter++;
+        });
+        
+        // Ajouter un premier élément au chargement
+        addOrderingBtn.click();
+    }
+});

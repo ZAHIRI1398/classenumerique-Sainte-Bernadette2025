@@ -1,0 +1,617 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    {% if current_user.role == 'teacher' %}
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>{{ exercise.title }}</h1>
+            <div class="btn-group">
+                <a href="{{ url_for('edit_exercise', exercise_id=exercise.id) }}" class="btn btn-outline-primary">
+                    <i class="fas fa-edit"></i> Modifier
+                </a>
+                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                    <i class="fas fa-trash"></i> Supprimer
+                </button>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Informations de l'exercice</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Matière:</strong> {{ exercise.subject }}</p>
+                        <p><strong>Niveau:</strong> {{ exercise.level }}</p>
+                        <p><strong>Type:</strong> {{ exercise.exercise_type }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Points:</strong> {{ exercise.points }}</p>
+                        <p><strong>Difficulté:</strong> {{ exercise.difficulty }}</p>
+                        <p><strong>Date de création:</strong> {{ exercise.created_at.strftime('%d/%m/%Y') }}</p>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <h6>Description:</h6>
+                    <p>{{ exercise.description }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Contenu de l'exercice</h5>
+            </div>
+            <div class="card-body">
+                {% if exercise.exercise_type == 'QCM' %}
+                    {% for question in exercise.questions %}
+                        <div class="mb-4">
+                            <h6>Question {{ loop.index }}:</h6>
+                            <p>{{ question.text }}</p>
+                            {% if question.image %}
+                                <img src="{{ url_for('static', filename=question.image) }}" 
+                                     class="img-fluid mb-3" alt="Image de la question">
+                            {% endif %}
+                            <div class="list-group">
+                                {% for choice in question.choices %}
+                                    <div class="list-group-item">
+                                        {% if is_teacher %}
+                                            <div class="d-flex align-items-center">
+                                                <span class="me-2">
+                                                    <i class="fas {% if choice.is_correct %}fa-check text-success{% else %}fa-times text-danger{% endif %}"></i>
+                                                </span>
+                                                {{ choice.text }}
+                                            </div>
+                                        {% else %}
+                                            <div class="form-check">
+                                                <input type="radio" class="form-check-input" 
+                                                       name="answer_{{ question.id }}" 
+                                                       value="{{ choice.id }}" 
+                                                       {% if user_submission and choice.id in user_submission.answers %}checked{% endif %}
+                                                       {% if user_submission %}disabled{% endif %}>
+                                                <label class="form-check-label">{{ choice.text }}</label>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% elif exercise.exercise_type == 'text_holes' %}
+                    <div class="text-content mb-4">
+                        <form method="POST" action="{{ url_for('submit_exercise', exercise_id=exercise.id) }}">
+                            {{ form.hidden_tag() }}
+                            {% for hole in exercise.text_holes %}
+                                <div class="mb-4">
+                                    <div class="question-text">{{ hole.text_before }}</div>
+                                    {% if is_teacher %}
+                                        <div class="answer mt-2">
+                                            <span class="badge bg-success">{{ hole.correct_answer }}</span>
+                                        </div>
+                                    {% else %}
+                                        <div class="answer mt-2">
+                                            <input type="text" class="form-control" 
+                                                   style="width: 150px;"
+                                                   name="answer_{{ loop.index0 }}"
+                                                   {% if user_submission %}
+                                                       value="{{ user_submission.answers[loop.index0] }}"
+                                                       disabled
+                                                   {% endif %}
+                                                   required>
+                                            <span class="ms-2">{{ hole.text_after }}</span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                            
+                            {% if not is_teacher and not user_submission %}
+                                <div class="mt-4">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-check"></i> Soumettre
+                                    </button>
+                                </div>
+                            {% endif %}
+                        </form>
+                    </div>
+                {% elif exercise.exercise_type == 'PAIR_MATCH' %}
+                    <div class="container mt-4">
+                        <form id="pair-match-form" method="POST" action="{{ url_for('submit_exercise', exercise_id=exercise.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" id="matches-input" name="matches" value="[]">
+                            
+                            <div class="row">
+                                <div class="col-md-5">
+                                    <h4 class="mb-3">Éléments à associer</h4>
+                                    <div id="left-items" class="list-group">
+                                        {% for pair in exercise.pair_matches %}
+                                            <div class="list-group-item" draggable="true" data-pair-id="{{ pair.id }}">
+                                                {% if pair.left_type == 'image' %}
+                                                    <img src="{{ url_for('static', filename=pair.left_content) }}" class="img-fluid" alt="Image gauche">
+                                                {% else %}
+                                                    {{ pair.left_content }}
+                                                {% endif %}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-2 d-flex align-items-center justify-content-center">
+                                    <div class="text-center">
+                                        <i class="fas fa-arrows-alt-h fa-2x"></i>
+                                        <p class="mt-2">Glissez les éléments pour créer les associations</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-5">
+                                    <h4 class="mb-3">Correspondances</h4>
+                                    <div id="right-items" class="list-group">
+                                        {% for pair in exercise.pair_matches %}
+                                            <div class="list-group-item" data-pair-id="{{ pair.id }}">
+                                                {% if pair.right_type == 'image' %}
+                                                    <img src="{{ url_for('static', filename=pair.right_content) }}" class="img-fluid" alt="Image droite">
+                                                {% else %}
+                                                    {{ pair.right_content }}
+                                                {% endif %}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-4">
+                                <div class="col-12 text-center">
+                                    <button type="submit" class="btn btn-primary" disabled>
+                                        Soumettre les réponses
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <style>
+                        .list-group-item {
+                            cursor: pointer;
+                            transition: all 0.3s ease;
+                            margin-bottom: 8px;
+                            border: 2px solid transparent;
+                        }
+                        
+                        .list-group-item.dragging {
+                            opacity: 0.5;
+                            transform: scale(0.95);
+                            background-color: #e9ecef;
+                        }
+                        
+                        .list-group-item.selected {
+                            border-color: #007bff;
+                            background-color: #e3f2fd;
+                            box-shadow: 0 0 5px rgba(0,123,255,0.5);
+                        }
+                        
+                        .list-group-item.matched {
+                            border-color: #28a745;
+                            background-color: #d4edda;
+                            box-shadow: 0 0 5px rgba(40,167,69,0.5);
+                        }
+                        
+                        .list-group-item:hover {
+                            transform: translateY(-2px);
+                            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                        }
+                        
+                        .list-group-item img {
+                            max-height: 200px;
+                            object-fit: contain;
+                        }
+                    </style>
+                    
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+                            const leftItems = document.querySelectorAll('#left-items .list-group-item');
+                            const rightItems = document.querySelectorAll('#right-items .list-group-item');
+                            const matchesInput = document.getElementById('matches-input');
+                            const submitButton = document.querySelector('button[type="submit"]');
+                            let selectedItem = null;
+                            let matches = [];
+
+                            function updateMatchesInput() {
+                                matchesInput.value = JSON.stringify(matches);
+                                console.log('Matches mis à jour:', matches);
+                                
+                                // Activer/désactiver le bouton de soumission
+                                if (matches.length === leftItems.length) {
+                                    submitButton.removeAttribute('disabled');
+                                } else {
+                                    submitButton.setAttribute('disabled', 'disabled');
+                                }
+                            }
+
+                            function clearSelection() {
+                                if (selectedItem) {
+                                    selectedItem.classList.remove('selected');
+                                    selectedItem = null;
+                                }
+                            }
+
+                            function addMatch(leftId, rightId) {
+                                // Supprimer les anciennes correspondances pour ces éléments
+                                matches = matches.filter(m => m.left !== leftId && m.right !== rightId);
+                                
+                                // Ajouter la nouvelle correspondance
+                                matches.push({ left: leftId, right: rightId });
+                                updateMatchesInput();
+
+                                // Mettre à jour l'apparence
+                                document.querySelector(`[data-pair-id="${leftId}"]`).classList.add('matched');
+                                document.querySelector(`[data-pair-id="${rightId}"]`).classList.add('matched');
+                            }
+
+                            // Désactiver initialement le bouton de soumission
+                            if (submitButton) {
+                                submitButton.setAttribute('disabled', 'disabled');
+                            }
+
+                            leftItems.forEach(item => {
+                                item.addEventListener('click', e => {
+                                    e.preventDefault();
+                                    if (selectedItem === item) {
+                                        clearSelection();
+                                    } else {
+                                        clearSelection();
+                                        item.classList.add('selected');
+                                        selectedItem = item;
+                                    }
+                                });
+                            });
+
+                            rightItems.forEach(item => {
+                                item.addEventListener('click', e => {
+                                    e.preventDefault();
+                                    if (selectedItem && selectedItem.parentElement.id === 'left-items') {
+                                        const leftId = selectedItem.dataset.pairId;
+                                        const rightId = item.dataset.pairId;
+                                        addMatch(leftId, rightId);
+                                        clearSelection();
+                                    }
+                                });
+                            });
+
+                            // Ajouter un gestionnaire pour le formulaire
+                            const form = document.querySelector('form');
+                            if (form) {
+                                form.addEventListener('submit', function(e) {
+                                    if (matches.length < leftItems.length) {
+                                        e.preventDefault();
+                                        alert('Veuillez associer tous les éléments avant de soumettre !');
+                                    } else {
+                                        console.log('Soumission du formulaire avec les correspondances:', matches);
+                                    }
+                                });
+                            }
+                        });
+                    </script>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if current_user.is_teacher %}
+            <div class="container mt-4">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{{ url_for('exercise_specific_stats', exercise_id=exercise.id) }}" class="btn btn-info">
+                                <i class="fas fa-chart-bar"></i> Statistiques de cet exercice
+                            </a>
+                            <a href="{{ url_for('exercise_stats') }}" class="btn btn-secondary">
+                                <i class="fas fa-chart-line"></i> Tous les exercices
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- Modal de confirmation de suppression -->
+        <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="deleteModalLabel">Confirmer la suppression</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        Êtes-vous sûr de vouloir supprimer cet exercice ? Cette action est irréversible.
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <form action="{{ url_for('delete_exercise', exercise_id=exercise.id) }}" method="POST" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-danger">Supprimer</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="container py-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="mb-0">{{ exercise.title }}</h1>
+                    <div class="mt-2">
+                        <span class="badge bg-primary">{{ exercise.subject }}</span>
+                        <span class="badge bg-secondary">{{ exercise.level }}</span>
+                        <span class="badge bg-info">{{ exercise.points }} points</span>
+                    </div>
+                </div>
+                <a href="{{ url_for('student_dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Retour
+                </a>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-body">
+                    <p class="card-text">{{ exercise.description }}</p>
+                </div>
+            </div>
+
+            {% if user_submission %}
+                <div class="alert {% if user_submission.score == exercise.points %}alert-success{% else %}alert-info{% endif %} mb-4">
+                    <h5 class="alert-heading">Résultat :</h5>
+                    <p class="mb-0">Score : {{ user_submission.score }}/{{ exercise.points }}</p>
+                </div>
+            {% endif %}
+
+            {% if exercise.exercise_type == 'QCM' %}
+                <form method="POST" action="{{ url_for('submit_exercise', exercise_id=exercise.id) }}">
+                    {{ form.hidden_tag() }}
+                    {% for question in exercise.questions %}
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">Question {{ loop.index }}</h5>
+                                <p class="card-text">{{ question.text }}</p>
+                                {% if question.image %}
+                                    <img src="{{ url_for('static', filename=question.image) }}" 
+                                         class="img-fluid mb-3" alt="Image de la question">
+                                {% endif %}
+                                
+                                <div class="list-group">
+                                    {% for choice in question.choices %}
+                                        <div class="list-group-item">
+                                            <div class="form-check">
+                                                <input type="radio" 
+                                                       class="form-check-input" 
+                                                       name="answer_{{ question.id }}" 
+                                                       value="{{ choice.id }}"
+                                                       {% if user_submission and choice.id in user_submission.answers %}checked{% endif %}
+                                                       {% if user_submission %}disabled{% endif %}
+                                                       required>
+                                                <label class="form-check-label">{{ choice.text }}</label>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                    
+                    {% if not user_submission %}
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-check"></i> Soumettre
+                        </button>
+                    {% endif %}
+                </form>
+            {% elif exercise.exercise_type == 'text_holes' %}
+                <div class="text-content mb-4">
+                    <form method="POST" action="{{ url_for('submit_exercise', exercise_id=exercise.id) }}">
+                        {{ form.hidden_tag() }}
+                        {% for hole in exercise.text_holes %}
+                            <div class="mb-4">
+                                <div class="question-text">{{ hole.text_before }}</div>
+                                {% if user_submission %}
+                                    <div class="answer mt-2">
+                                        <span class="badge bg-success">{{ user_submission.answers[loop.index0] }}</span>
+                                    </div>
+                                {% else %}
+                                    <div class="answer mt-2">
+                                        <input type="text" class="form-control" 
+                                               style="width: 150px;"
+                                               name="answer_{{ loop.index0 }}"
+                                               required>
+                                        <span class="ms-2">{{ hole.text_after }}</span>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                        
+                        {% if not user_submission %}
+                            <div class="mt-4">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-check"></i> Soumettre
+                                </button>
+                            </div>
+                        {% endif %}
+                    </form>
+                </div>
+            {% elif exercise.exercise_type == 'PAIR_MATCH' %}
+                <div class="container mt-4">
+                    <form id="pair-match-form" method="POST" action="{{ url_for('submit_exercise', exercise_id=exercise.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" id="matches-input" name="matches" value="[]">
+                        
+                        <div class="row">
+                            <div class="col-md-5">
+                                <h4 class="mb-3">Éléments à associer</h4>
+                                <div id="left-items" class="list-group">
+                                    {% for pair in exercise.pair_matches %}
+                                        <div class="list-group-item" draggable="true" data-pair-id="{{ pair.id }}">
+                                            {% if pair.left_type == 'image' %}
+                                                <img src="{{ url_for('static', filename=pair.left_content) }}" class="img-fluid" alt="Image gauche">
+                                            {% else %}
+                                                {{ pair.left_content }}
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-2 d-flex align-items-center justify-content-center">
+                                <div class="text-center">
+                                    <i class="fas fa-arrows-alt-h fa-2x"></i>
+                                    <p class="mt-2">Glissez les éléments pour créer les associations</p>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-5">
+                                <h4 class="mb-3">Correspondances</h4>
+                                <div id="right-items" class="list-group">
+                                    {% for pair in exercise.pair_matches %}
+                                        <div class="list-group-item" data-pair-id="{{ pair.id }}">
+                                            {% if pair.right_type == 'image' %}
+                                                <img src="{{ url_for('static', filename=pair.right_content) }}" class="img-fluid" alt="Image droite">
+                                            {% else %}
+                                                {{ pair.right_content }}
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-4">
+                            <div class="col-12 text-center">
+                                <button type="submit" class="btn btn-primary" disabled>
+                                    Soumettre les réponses
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <style>
+                    .list-group-item {
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                        margin-bottom: 8px;
+                        border: 2px solid transparent;
+                    }
+                    
+                    .list-group-item.dragging {
+                        opacity: 0.5;
+                        transform: scale(0.95);
+                        background-color: #e9ecef;
+                    }
+                    
+                    .list-group-item.selected {
+                        border-color: #007bff;
+                        background-color: #e3f2fd;
+                        box-shadow: 0 0 5px rgba(0,123,255,0.5);
+                    }
+                    
+                    .list-group-item.matched {
+                        border-color: #28a745;
+                        background-color: #d4edda;
+                        box-shadow: 0 0 5px rgba(40,167,69,0.5);
+                    }
+                    
+                    .list-group-item:hover {
+                        transform: translateY(-2px);
+                        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                    }
+                    
+                    .list-group-item img {
+                        max-height: 200px;
+                        object-fit: contain;
+                    }
+                </style>
+                
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const leftItems = document.querySelectorAll('#left-items .list-group-item');
+                        const rightItems = document.querySelectorAll('#right-items .list-group-item');
+                        const matchesInput = document.getElementById('matches-input');
+                        const submitButton = document.querySelector('button[type="submit"]');
+                        let selectedItem = null;
+                        let matches = [];
+
+                        function updateMatchesInput() {
+                            matchesInput.value = JSON.stringify(matches);
+                            console.log('Matches mis à jour:', matches);
+                            
+                            // Activer/désactiver le bouton de soumission
+                            if (matches.length === leftItems.length) {
+                                submitButton.removeAttribute('disabled');
+                            } else {
+                                submitButton.setAttribute('disabled', 'disabled');
+                            }
+                        }
+
+                        function clearSelection() {
+                            if (selectedItem) {
+                                selectedItem.classList.remove('selected');
+                                selectedItem = null;
+                            }
+                        }
+
+                        function addMatch(leftId, rightId) {
+                            // Supprimer les anciennes correspondances pour ces éléments
+                            matches = matches.filter(m => m.left !== leftId && m.right !== rightId);
+                            
+                            // Ajouter la nouvelle correspondance
+                            matches.push({ left: leftId, right: rightId });
+                            updateMatchesInput();
+
+                            // Mettre à jour l'apparence
+                            document.querySelector(`[data-pair-id="${leftId}"]`).classList.add('matched');
+                            document.querySelector(`[data-pair-id="${rightId}"]`).classList.add('matched');
+                        }
+
+                        // Désactiver initialement le bouton de soumission
+                        if (submitButton) {
+                            submitButton.setAttribute('disabled', 'disabled');
+                        }
+
+                        leftItems.forEach(item => {
+                            item.addEventListener('click', e => {
+                                e.preventDefault();
+                                if (selectedItem === item) {
+                                    clearSelection();
+                                } else {
+                                    clearSelection();
+                                    item.classList.add('selected');
+                                    selectedItem = item;
+                                }
+                            });
+                        });
+
+                        rightItems.forEach(item => {
+                            item.addEventListener('click', e => {
+                                e.preventDefault();
+                                if (selectedItem && selectedItem.parentElement.id === 'left-items') {
+                                    const leftId = selectedItem.dataset.pairId;
+                                    const rightId = item.dataset.pairId;
+                                    addMatch(leftId, rightId);
+                                    clearSelection();
+                                }
+                            });
+                        });
+
+                        // Ajouter un gestionnaire pour le formulaire
+                        const form = document.querySelector('form');
+                        if (form) {
+                            form.addEventListener('submit', function(e) {
+                                if (matches.length < leftItems.length) {
+                                    e.preventDefault();
+                                    alert('Veuillez associer tous les éléments avant de soumettre !');
+                                } else {
+                                    console.log('Soumission du formulaire avec les correspondances:', matches);
+                                }
+                            });
+                        }
+                    });
+                </script>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

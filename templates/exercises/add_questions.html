@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Ajouter des questions - {{ exercise.title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('teacher_dashboard') }}">Tableau de bord</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('exercise_library') }}">Bibliothèque d'exercices</a></li>
+            <li class="breadcrumb-item active">Ajouter des questions</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-md-4">
+            <!-- Panneau d'information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">{{ exercise.title }}</h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">{{ exercise.description }}</p>
+                    <div class="mb-2">
+                        <strong>Difficulté :</strong> 
+                        <span class="badge bg-{{ 'success' if exercise.difficulty == 'facile' else 'warning' if exercise.difficulty == 'moyen' else 'danger' }}">
+                            {{ exercise.difficulty }}
+                        </span>
+                    </div>
+                    <div class="mb-2">
+                        <strong>Points :</strong> {{ exercise.points }}
+                    </div>
+                    {% if exercise.image_path %}
+                    <div class="mt-3">
+                        <img src="{{ url_for('static', filename=exercise.image_path) }}" class="img-fluid rounded" alt="Image de l'exercice">
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Questions existantes -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Questions existantes</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for question in exercise.questions %}
+                    <div class="list-group-item">
+                        <h6 class="mb-1">Question {{ loop.index }}</h6>
+                        <p class="mb-1">{{ question.question_text }}</p>
+                        <small class="text-muted">{{ question.points }} points</small>
+                    </div>
+                    {% else %}
+                    <div class="list-group-item">
+                        <p class="text-muted mb-0">Aucune question pour le moment</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <!-- Formulaire d'ajout de question -->
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Ajouter une nouvelle question</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {{ form.csrf_token }}
+                        
+                        <div class="mb-3">
+                            {{ form.question_text.label(class="form-label") }}
+                            {{ form.question_text(class="form-control", rows=3) }}
+                            {% if form.question_text.errors %}
+                                {% for error in form.question_text.errors %}
+                                    <div class="text-danger">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.points.label(class="form-label") }}
+                            {{ form.points(class="form-control", type="number", min="1") }}
+                            {% if form.points.errors %}
+                                {% for error in form.points.errors %}
+                                    <div class="text-danger">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Choix de réponses</label>
+                            <div class="choices-container">
+                                {% for choice in form.choices %}
+                                <div class="choice-item mb-2">
+                                    <div class="input-group">
+                                        {{ choice.choice_text(class="form-control", placeholder="Réponse " ~ loop.index) }}
+                                        <div class="input-group-text">
+                                            {{ choice.is_correct(class="form-check-input mt-0") }}
+                                            <label class="form-check-label ms-2 mb-0">Correct</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('exercise_library') }}" class="btn btn-secondary">Terminer</a>
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
