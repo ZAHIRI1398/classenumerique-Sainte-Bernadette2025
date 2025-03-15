@@ -2,93 +2,106 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h2>Statistiques des exercices</h2>
+    <div class="row mb-4">
+        <div class="col">
+            <h1>Statistiques des exercices</h1>
+            {% if not single_exercise %}
+                <p class="text-muted">Vue d'ensemble de tous les exercices</p>
+            {% endif %}
+        </div>
+    </div>
 
-    <!-- Statistiques globales -->
+    {% if overall_stats %}
     <div class="row mb-4">
         <div class="col-md-4">
             <div class="card bg-primary text-white">
-                <div class="card-body text-center">
-                    <h5>Nombre total d'exercices</h5>
-                    <h2>{{ overall_stats.total_exercises }}</h2>
+                <div class="card-body">
+                    <h5 class="card-title">Exercices</h5>
+                    <p class="card-text display-4">{{ overall_stats.total_exercises }}</p>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
             <div class="card bg-success text-white">
-                <div class="card-body text-center">
-                    <h5>Nombre total de soumissions</h5>
-                    <h2>{{ overall_stats.total_submissions }}</h2>
+                <div class="card-body">
+                    <h5 class="card-title">Soumissions</h5>
+                    <p class="card-text display-4">{{ overall_stats.total_submissions }}</p>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
             <div class="card bg-info text-white">
-                <div class="card-body text-center">
-                    <h5>Score moyen global</h5>
-                    <h2>{{ "%.1f"|format(overall_stats.average_score * 100) }}%</h2>
+                <div class="card-body">
+                    <h5 class="card-title">Score moyen</h5>
+                    <p class="card-text display-4">{{ "%.1f"|format(overall_stats.average_score * 100) }}%</p>
                 </div>
             </div>
         </div>
     </div>
+    {% endif %}
 
-    <!-- Détails par exercice -->
-    <div class="row">
+    {% if exercise_stats %}
         {% for stat in exercise_stats %}
-        <div class="col-md-12 mb-4">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">{{ stat.exercise.title }}</h5>
-                    <div>
-                        <span class="badge bg-primary">{{ stat.submissions_count }} soumissions</span>
-                        <span class="badge bg-success">{{ "%.1f"|format(stat.average_score * 100) }}% score moyen</span>
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">{{ stat.exercise.title }}</h5>
+                <span class="badge bg-primary">{{ stat.class_name }}</span>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <p><strong>Nombre de soumissions :</strong> {{ stat.submissions_count }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <p><strong>Score moyen :</strong> {{ "%.1f"|format(stat.average_score * 100) }}%</p>
+                    </div>
+                    <div class="col-md-4">
+                        <p><strong>Points maximum :</strong> {{ stat.exercise.points }}</p>
                     </div>
                 </div>
-                <div class="card-body">
-                    <!-- Détails des soumissions -->
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Étudiant</th>
-                                    <th>Score</th>
-                                    <th>Date de soumission</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for sub in stat.submissions %}
-                                <tr>
-                                    <td>{{ sub.student_name }}</td>
-                                    <td>{{ "%.1f"|format(sub.score * 100) }}%</td>
-                                    <td>{{ sub.submitted_at.strftime('%d/%m/%Y %H:%M') }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+
+                {% if stat.submissions %}
+                <div class="table-responsive mt-3">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Élève</th>
+                                <th>Score</th>
+                                <th>Date de soumission</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sub in stat.submissions %}
+                            <tr>
+                                <td>{{ sub.student_name }}</td>
+                                <td>{{ "%.1f"|format(sub.score * 100) }}%</td>
+                                <td>{{ sub.submitted_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
+                {% else %}
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle"></i> Aucune soumission pour le moment.
+                </div>
+                {% endif %}
             </div>
         </div>
         {% endfor %}
-    </div>
-</div>
+    {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> Aucune donnée statistique disponible pour le moment.
+            <p class="mb-0">Les statistiques apparaîtront ici une fois que vos élèves auront commencé à soumettre des exercices.</p>
+        </div>
+    {% endif %}
 
-<style>
-.card {
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-.card-header {
-    background-color: #f8f9fa;
-}
-.badge {
-    margin-left: 8px;
-    padding: 8px 12px;
-}
-.table {
-    margin-bottom: 0;
-}
-.table th {
-    border-top: none;
-}
-</style>
+    {% if single_exercise %}
+    <div class="mt-4">
+        <a href="{{ url_for('exercise_stats') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour aux statistiques globales
+        </a>
+    </div>
+    {% endif %}
+</div>
 {% endblock %}

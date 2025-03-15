@@ -1191,66 +1191,100 @@ def submit_exercise(exercise_id):
         logger.info(f"Tentative de soumission pour l'exercice {exercise_id}")
         exercise = Exercise.query.get_or_404(exercise_id)
         
-        if exercise.exercise_type == 'PAIR_MATCH':
-            matches_json = request.form.get('matches', '[]')
-            logger.info(f"Matches reçus: {matches_json}")
+        # Vérifier si l'étudiant a déjà soumis cet exercice
+        existing_submission = ExerciseSubmission.query.filter_by(
+            student_id=current_user.id,
+            exercise_id=exercise_id
+        ).first()
+        
+        if existing_submission:
+            flash('Vous avez déjà soumis cet exercice.', 'warning')
+            return redirect(url_for('view_exercise', exercise_id=exercise_id))
+        
+        answers = {}
+        score = 0
+        
+        if exercise.exercise_type == 'QCM':
+            total_questions = len(exercise.questions)
+            correct_answers = 0
             
+            for question in exercise.questions:
+                answer_key = f'answer_{question.id}'
+                selected_choice_id = request.form.get(answer_key)
+                
+                if selected_choice_id:
+                    answers[str(question.id)] = selected_choice_id
+                    selected_choice = Choice.query.get(selected_choice_id)
+                    if selected_choice and selected_choice.is_correct:
+                        correct_answers += 1
+            
+            if total_questions > 0:
+                score = (correct_answers / total_questions)
+                
+        elif exercise.exercise_type == 'text_holes':
+            total_holes = len(exercise.text_holes)
+            correct_answers = 0
+            student_answers = []
+            
+            for i, hole in enumerate(exercise.text_holes):
+                answer_key = f'answer_{i}'
+                student_answer = request.form.get(answer_key, '').strip()
+                student_answers.append(student_answer)
+                
+                if student_answer.lower() == hole.correct_answer.lower():
+                    correct_answers += 1
+            
+            answers = student_answers
+            if total_holes > 0:
+                score = (correct_answers / total_holes)
+                
+        elif exercise.exercise_type == 'PAIR_MATCH':
+            matches_json = request.form.get('matches', '[]')
             try:
                 matches = json.loads(matches_json)
-                if not isinstance(matches, list):
-                    raise ValueError("Le format des correspondances est invalide")
-                
                 total_pairs = len(exercise.pair_matches)
-                if len(matches) < total_pairs:
-                    flash(f"Veuillez associer tous les éléments avant de soumettre ! ({len(matches)}/{total_pairs})", "warning")
-                    return redirect(url_for('view_exercise', exercise_id=exercise_id))
+                correct_matches = 0
                 
-                # Vérifier chaque correspondance
-                score = 0
-                answers = {}
                 for match in matches:
-                    if not isinstance(match, dict) or 'left' not in match or 'right' not in match:
-                        raise ValueError("Format de correspondance invalide")
+                    left_id = str(match.get('left'))
+                    right_id = str(match.get('right'))
                     
-                    left_id = str(match['left'])
-                    right_id = str(match['right'])
-                    answers[left_id] = right_id
-                    
-                    # Vérifier si la correspondance est correcte
-                    pair = PairMatch.query.get(left_id)
-                    if pair and pair.exercise_id == exercise_id and str(pair.id) == right_id:
-                        score += 1
+                    if left_id and right_id:
+                        answers[left_id] = right_id
+                        pair = PairMatch.query.get(left_id)
+                        if pair and str(pair.id) == right_id:
+                            correct_matches += 1
                 
-                # Calculer le score final
-                final_score = (score / total_pairs) * exercise.points
-                
-                # Créer la soumission
-                submission = ExerciseSubmission(
-                    student_id=current_user.id,
-                    exercise_id=exercise_id,
-                    answers=answers,
-                    score=final_score,
-                    submitted_at=datetime.utcnow()
-                )
-                
-                db.session.add(submission)
-                db.session.commit()
-                
-                flash(f'Exercice soumis avec succès ! Score : {final_score}/{exercise.points} points', 'success')
-                return redirect(url_for('view_exercise', exercise_id=exercise_id))
-                
-            except (json.JSONDecodeError, ValueError) as e:
-                logger.error(f"Erreur lors du traitement des correspondances: {str(e)}")
-                flash("Format de soumission invalide.", "danger")
+                if total_pairs > 0:
+                    score = (correct_matches / total_pairs)
+            except json.JSONDecodeError:
+                flash('Format de réponse invalide.', 'error')
                 return redirect(url_for('view_exercise', exercise_id=exercise_id))
         
-        # Pour les autres types d'exercices, garder le code existant
+        # Calculer le score final en points
+        final_score = score * exercise.points
+        
+        # Créer et sauvegarder la soumission
+        submission = ExerciseSubmission(
+            student_id=current_user.id,
+            exercise_id=exercise_id,
+            answers=answers,
+            score=score,  # Sauvegarder le score en pourcentage (0-1)
+            submitted_at=datetime.utcnow()
+        )
+        
+        db.session.add(submission)
+        db.session.commit()
+        
+        # Afficher le score en pourcentage pour l'utilisateur
+        percentage = score * 100
+        flash(f'Exercice soumis avec succès ! Score : {percentage:.1f}% ({final_score:.1f}/{exercise.points} points)', 'success')
         return redirect(url_for('view_exercise', exercise_id=exercise_id))
         
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Erreur lors de la soumission de l'exercice: {str(e)}")
-        flash("Une erreur s'est produite lors de la soumission de l'exercice.", 'danger')
+        log_database_error(e, f"Erreur lors de la soumission de l'exercice {exercise_id}")
+        flash("Une erreur s'est produite lors de la soumission de l'exercice.", 'error')
         return redirect(url_for('view_exercise', exercise_id=exercise_id))
 
 @app.route('/exercises/<int:exercise_id>/edit', methods=['GET', 'POST'])
@@ -1505,15 +1539,22 @@ def view_class(class_id):
         flash('Vous n\'êtes pas l\'enseignant de cette classe.', 'danger')
         return redirect(url_for('teacher_dashboard'))
     
-    # Récupérer tous les exercices associés à la classe
-    exercises = Exercise.query.join(ClassExercise).filter(ClassExercise.class_id == class_id).all()
+    # Récupérer tous les cours de la classe
+    courses = Course.query.filter_by(class_id=class_id).all()
+    
+    # Récupérer les exercices pour chaque cours
+    course_exercises = {}
+    for course in courses:
+        exercises = Exercise.query.filter_by(course_id=course.id).all()
+        course_exercises[course.id] = exercises
     
     # Récupérer les étudiants inscrits
-    enrolled_students = ClassEnrollment.query.filter_by(class_id=class_id).all()
+    enrolled_students = User.query.join(ClassEnrollment).filter(ClassEnrollment.class_id == class_id).all()
     
     return render_template('view_class.html', 
                          class_=class_,
-                         exercises=exercises,
+                         courses=courses,
+                         course_exercises=course_exercises,
                          enrolled_students=enrolled_students,
                          title=class_.name)
 
@@ -1623,12 +1664,12 @@ def upload_course_file(course_id):
     if request.method == 'POST':
         if 'file' not in request.files:
             flash('Aucun fichier n\'a été sélectionné.', 'danger')
-            return redirect(request.url)
+            return redirect(url_for('view_course', course_id=course_id))
 
         file = request.files['file']
         if file.filename == '':
             flash('Aucun fichier n\'a été sélectionné.', 'danger')
-            return redirect(request.url)
+            return redirect(url_for('view_course', course_id=course_id))
 
         if file:
             filename = secure_filename(file.filename)
@@ -1822,50 +1863,74 @@ def debug_submissions(exercise_id):
 @login_required
 @teacher_required
 def exercise_stats():
+    """Route pour afficher les statistiques des exercices."""
     try:
-        # Récupérer toutes les classes de l'enseignant
-        teacher_classes = Class.query.filter_by(teacher_id=current_user.id).all()
+        # Utiliser les modèles depuis models.py
+        teacher_classes = Class.query.filter_by(teacher_id=current_user.id).options(
+            joinedload(Class.courses).joinedload(Course.exercises)
+        ).all()
         
-        # Récupérer tous les exercices de ces classes
         all_exercises = []
-        for class_ in teacher_classes:
-            for course in class_.courses:
-                all_exercises.extend(course.exercises)
-        
-        # Calculer les statistiques
-        total_exercises = len(all_exercises)
         total_submissions = 0
         average_scores = []
-        
         exercise_stats = []
+        
+        for class_ in teacher_classes:
+            for course in class_.courses:
+                if course.exercises:
+                    all_exercises.extend(course.exercises)
+        
         for exercise in all_exercises:
-            submissions = ExerciseSubmission.query.filter_by(exercise_id=exercise.id).all()
+            # Charger les soumissions avec une jointure sur la table User
+            submissions = db.session.query(
+                ExerciseSubmission,
+                User
+            ).join(
+                User,
+                ExerciseSubmission.student_id == User.id
+            ).filter(
+                ExerciseSubmission.exercise_id == exercise.id
+            ).all()
+            
+            submissions_with_details = []
+            scores = []
+            
+            for submission, user in submissions:
+                if submission.score is not None:
+                    scores.append(float(submission.score))
+                    submissions_with_details.append({
+                        'student_name': user.username,
+                        'score': float(submission.score),
+                        'submitted_at': submission.submitted_at
+                    })
+            
             num_submissions = len(submissions)
             total_submissions += num_submissions
             
-            if num_submissions > 0:
-                avg_score = sum(sub.score for sub in submissions) / num_submissions
+            if scores:  # S'il y a des scores valides
+                avg_score = sum(scores) / len(scores)
                 average_scores.append(avg_score)
                 
                 exercise_stats.append({
                     'exercise': exercise,
-                    'submissions': num_submissions,
+                    'submissions': submissions_with_details,
+                    'submissions_count': num_submissions,
                     'average_score': avg_score,
                     'class_name': exercise.course.class_.name
                 })
         
         overall_stats = {
-            'total_exercises': total_exercises,
+            'total_exercises': len(all_exercises),
             'total_submissions': total_submissions,
             'average_score': sum(average_scores) / len(average_scores) if average_scores else 0
         }
         
         return render_template('exercise_stats.html',
-                             exercise_stats=exercise_stats,
-                             overall_stats=overall_stats)
-                             
+                            exercise_stats=exercise_stats,
+                            overall_stats=overall_stats)
+                            
     except Exception as e:
-        logger.error(f"Error accessing exercise statistics: {str(e)}")
+        log_database_error(e, "Erreur lors de l'accès aux statistiques")
         flash("Une erreur s'est produite lors de l'accès aux statistiques.", "error")
         return redirect(url_for('teacher_dashboard'))
 
@@ -1873,41 +1938,64 @@ def exercise_stats():
 @login_required
 @teacher_required
 def exercise_specific_stats(exercise_id):
-    if not current_user.is_teacher:
-        flash('Accès non autorisé.', 'error')
-        return redirect(url_for('index'))
-
-    # Récupérer l'exercice spécifique
-    exercise = Exercise.query.get_or_404(exercise_id)
-    
-    # Récupérer toutes les soumissions pour cet exercice avec les données des étudiants
-    submissions = ExerciseSubmission.query.filter_by(exercise_id=exercise_id).all()
-    
-    # Convertir les résultats en objets plus faciles à manipuler
-    exercise.submissions = []
-    for submission in submissions:
-        submission.student = User.query.get(submission.student_id)
-        exercise.submissions.append(submission)
-    
-    if exercise.submissions:
-        scores = [s.score for s in exercise.submissions]
-        exercise.average_score = sum(scores) / len(scores)
-        exercise.max_score = max(scores)
-        exercise.min_score = min(scores)
+    """Route pour afficher les statistiques d'un exercice spécifique."""
+    try:
+        exercise = Exercise.query.get_or_404(exercise_id)
         
-        # Calculer la distribution des scores
-        exercise.score_distribution = {}
-        ranges = [(0, 25), (25, 50), (50, 75), (75, 100)]
-        for start, end in ranges:
-            count = sum(1 for score in scores if start <= score < end or (end == 100 and score == 100))
-            exercise.score_distribution[(start, end)] = count
-    else:
-        exercise.average_score = 0
-        exercise.max_score = 0
-        exercise.min_score = 0
-        exercise.score_distribution = {(0, 25): 0, (25, 50): 0, (50, 75): 0, (75, 100): 0}
-
-    return render_template('exercise_stats.html', exercises=[exercise], single_exercise=True)
+        # Vérifier que l'enseignant a accès à cet exercice
+        if exercise.course.class_.teacher_id != current_user.id:
+            flash("Vous n'avez pas accès à ces statistiques.", "error")
+            return redirect(url_for('teacher_dashboard'))
+            
+        # Récupérer toutes les soumissions pour cet exercice avec une jointure sur la table User
+        submissions = db.session.query(
+            ExerciseSubmission,
+            User
+        ).join(
+            User,
+            ExerciseSubmission.student_id == User.id
+        ).filter(
+            ExerciseSubmission.exercise_id == exercise_id
+        ).all()
+        
+        submissions_with_details = []
+        scores = []
+        
+        for submission, user in submissions:
+            if submission.score is not None:
+                scores.append(float(submission.score))
+                submissions_with_details.append({
+                    'student_name': user.username,
+                    'score': float(submission.score),
+                    'submitted_at': submission.submitted_at
+                })
+        
+        num_submissions = len(submissions)
+        avg_score = sum(scores) / len(scores) if scores else 0
+        
+        exercise_stats = [{
+            'exercise': exercise,
+            'submissions': submissions_with_details,
+            'submissions_count': num_submissions,
+            'average_score': avg_score,
+            'class_name': exercise.course.class_.name
+        }]
+        
+        overall_stats = {
+            'total_exercises': 1,  # Un seul exercice
+            'total_submissions': num_submissions,
+            'average_score': avg_score
+        }
+        
+        return render_template('exercise_stats.html',
+                            exercise_stats=exercise_stats,
+                            overall_stats=overall_stats,
+                            single_exercise=True)
+                            
+    except Exception as e:
+        log_database_error(e, f"Erreur lors de l'accès aux statistiques de l'exercice {exercise_id}")
+        flash("Une erreur s'est produite lors de l'accès aux statistiques.", "error")
+        return redirect(url_for('view_exercise', exercise_id=exercise_id))
 
 @app.route('/uploads/<path:filename>')
 @login_required
