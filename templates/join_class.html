@@ -1,26 +1,28 @@
 {% extends "base.html" %}
 
+{% block title %}Rejoindre une classe{% endblock %}
+
 {% block content %}
-<div class="container py-4">
+<div class="container">
     <div class="row justify-content-center">
         <div class="col-md-6">
             <div class="card">
-                <div class="card-header">
-                    <h3 class="mb-0">Rejoindre une classe</h3>
-                </div>
                 <div class="card-body">
+                    <h2 class="card-title text-center mb-4">Rejoindre une classe</h2>
+                    
                     <form method="POST">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        {{ form.csrf_token }}
                         <div class="mb-3">
-                            <label for="invite_code" class="form-label">Code d'invitation</label>
-                            <input type="text" class="form-control" id="invite_code" name="invite_code" required 
-                                   pattern="[A-Z0-9]{6}" 
-                                   title="Le code d'invitation doit contenir 6 caractères (lettres majuscules et chiffres)">
-                            <div class="form-text">Entrez le code d'invitation fourni par votre professeur</div>
+                            <label for="code" class="form-label">Code d'invitation</label>
+                            {{ form.code(class="form-control", placeholder="Entrez le code d'invitation fourni par votre enseignant") }}
+                            {% if form.code.errors %}
+                                {% for error in form.code.errors %}
+                                    <div class="text-danger">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
                         </div>
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary">Rejoindre la classe</button>
-                            <a href="{{ url_for('student_dashboard') }}" class="btn btn-outline-secondary">Annuler</a>
+                        <div class="d-grid">
+                            {{ form.submit(class="btn btn-primary") }}
                         </div>
                     </form>
                 </div>
@@ -28,4 +30,4 @@
         </div>
     </div>
 </div>
-{% endblock content %}
+{% endblock %}

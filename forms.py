@@ -6,7 +6,7 @@ from flask import request
 from models import User
 
 class LoginForm(FlaskForm):
-    email = StringField('Email', validators=[DataRequired(), Email()])
+    username = StringField('Nom d\'utilisateur', validators=[DataRequired()])
     password = PasswordField('Mot de passe', validators=[DataRequired()])
     remember = BooleanField('Se souvenir de moi')
     submit = SubmitField('Se connecter')
@@ -130,7 +130,7 @@ class ExerciseForm(FlaskForm):
     submit = SubmitField('Créer l\'exercice')
 
 class JoinClassForm(FlaskForm):
-    invite_code = StringField('Code d\'invitation', validators=[DataRequired(), Length(min=6, max=6)])
+    code = StringField('Code d\'invitation', validators=[DataRequired(), Length(min=6, max=6)])
     submit = SubmitField('Rejoindre la classe')
 
 class GradeForm(FlaskForm):

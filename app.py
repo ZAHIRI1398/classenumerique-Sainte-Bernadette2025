@@ -13,6 +13,8 @@ from sqlalchemy.orm import joinedload
 import json
 from datetime import timedelta
 from urllib.parse import urlparse
+import random
+import string
 
 # Configuration du logging
 logging.basicConfig(
@@ -34,25 +36,30 @@ ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 
 # Import des formulaires
 from forms import (LoginForm, RegistrationForm, ClassForm, CourseForm, 
                   ExerciseForm, GradeForm, TextHoleForm, QuestionForm, ChoiceForm,
-                  PairMatchForm)
+                  PairMatchForm, JoinClassForm)
 
 # Configuration de l'application
 app = Flask(__name__)
-app.config.from_object('config')
-
-# Configuration des dossiers statiques
-app.static_folder = 'static'
-app.static_url_path = '/static'
+app.config['SECRET_KEY'] = 'votre_clé_secrète_ici'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
+app.config['SESSION_COOKIE_SECURE'] = False  # Pour le développement local
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config['WTF_CSRF_ENABLED'] = True
+app.config['WTF_CSRF_TIME_LIMIT'] = 3600  # 1 heure en secondes
+app.config['WTF_CSRF_SECRET_KEY'] = 'une_autre_clé_secrète_ici'
 
 # Initialisation des extensions
 db.init_app(app)
-migrate.init_app(app, db)
-bcrypt.init_app(app)
-csrf.init_app(app)
 login_manager.init_app(app)
+csrf.init_app(app)
+login_manager.login_view = 'login'
 
 # Configuration de Flask-Login
-login_manager.login_view = 'login'
 login_manager.session_protection = "strong"
 
 # Import des modèles et des utilitaires
@@ -90,41 +97,124 @@ def teacher_required(f):
 @app.route('/index')
 def index():
     if current_user.is_authenticated:
-        if current_user.role == 'teacher':
+        if current_user.is_teacher:
             return redirect(url_for('teacher_dashboard'))
         return redirect(url_for('student_dashboard'))
     return render_template('index.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    """Route pour la connexion des utilisateurs."""
     if current_user.is_authenticated:
-        print(f"User {current_user.id} already authenticated")  # Debug print
-        if current_user.role == 'teacher':
+        if current_user.is_teacher:
             return redirect(url_for('teacher_dashboard'))
-        return redirect(url_for('student_dashboard'))
-    
+        elif 'current_class_id' in session:
+            return redirect(url_for('student_dashboard'))
+        else:
+            classes_enrolled = current_user.classes_enrolled
+            if len(classes_enrolled) == 1:
+                session['current_class_id'] = classes_enrolled[0].id
+                return redirect(url_for('student_dashboard'))
+            elif len(classes_enrolled) > 1:
+                return redirect(url_for('select_class'))
+            else:
+                flash('Vous n\'êtes inscrit à aucune classe.', 'warning')
+                return redirect(url_for('join_class'))
+
     form = LoginForm()
     if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data).first()
+        user = User.query.filter_by(username=form.username.data).first()
+        
         if user and user.check_password(form.password.data):
-            print(f"Login successful for user {user.id}")  # Debug print
-            # Définir la session comme permanente si "remember me" est coché
-            if form.remember.data:
-                app.permanent_session_lifetime = timedelta(days=30)
-                session.permanent = True
             login_user(user, remember=form.remember.data)
-            next_page = request.args.get('next')
-            if not next_page or urlparse(next_page).netloc != '':
-                if user.role == 'teacher':
-                    next_page = url_for('teacher_dashboard')
+            session.permanent = True  # Utiliser la durée de session permanente
+            
+            # Si c'est un étudiant
+            if not user.is_teacher:
+                classes_enrolled = user.classes_enrolled
+                if len(classes_enrolled) == 1:
+                    session['current_class_id'] = classes_enrolled[0].id
+                    return redirect(url_for('student_dashboard'))
+                elif len(classes_enrolled) > 1:
+                    return redirect(url_for('select_class'))
                 else:
-                    next_page = url_for('student_dashboard')
-            return redirect(next_page)
+                    flash('Vous n\'êtes inscrit à aucune classe.', 'warning')
+                    return redirect(url_for('join_class'))
+            else:
+                return redirect(url_for('teacher_dashboard'))
         else:
-            print(f"Login failed for email {form.email.data}")  # Debug print
-            flash('Email ou mot de passe incorrect.', 'danger')
-    
+            flash('Nom d\'utilisateur ou mot de passe incorrect.', 'danger')
+            
     return render_template('login.html', form=form)
+
+@app.route('/select_class')
+@login_required
+def select_class():
+    """Route pour sélectionner une classe si l'étudiant est inscrit dans plusieurs classes."""
+    if current_user.is_teacher:
+        return redirect(url_for('teacher_dashboard'))
+    
+    enrolled_classes = current_user.enrolled_classes
+    return render_template('select_class.html', classes=enrolled_classes)
+
+@app.route('/set_current_class/<int:class_id>')
+@login_required
+def set_current_class(class_id):
+    """Route pour définir la classe actuelle de l'étudiant."""
+    if current_user.is_teacher:
+        return redirect(url_for('teacher_dashboard'))
+    
+    # Vérifier que l'étudiant est bien inscrit dans cette classe
+    class_ = Class.query.get_or_404(class_id)
+    if current_user not in class_.students:
+        flash('Vous n\'êtes pas inscrit dans cette classe.', 'danger')
+        return redirect(url_for('student_dashboard'))
+    
+    # Stocker l'ID de la classe dans la session
+    session['current_class_id'] = class_id
+    return redirect(url_for('view_class', class_id=class_id))
+
+@app.route('/student/join_class', methods=['POST'])
+@login_required
+def student_join_class():
+    """Route pour qu'un étudiant rejoigne une classe avec un code d'invitation."""
+    if current_user.is_teacher:
+        flash('Seuls les étudiants peuvent rejoindre une classe.', 'danger')
+        return redirect(url_for('teacher_dashboard'))
+    
+    code = request.form.get('code')
+    if not code:
+        flash('Le code d\'invitation est requis.', 'danger')
+        return redirect(url_for('join_class'))
+    
+    try:
+        # Trouver la classe avec ce code
+        class_obj = Class.query.filter_by(invite_code=code).first()
+        if not class_obj:
+            flash('Code d\'invitation invalide.', 'danger')
+            return redirect(url_for('join_class'))
+        
+        # Vérifier si l'étudiant est déjà inscrit
+        if current_user in class_obj.students:
+            flash('Vous êtes déjà inscrit dans cette classe.', 'info')
+            session['current_class_id'] = class_obj.id
+            return redirect(url_for('student_dashboard'))
+        
+        # Ajouter l'étudiant à la classe
+        class_obj.students.append(current_user)
+        db.session.commit()
+        
+        # Définir cette classe comme classe actuelle
+        session['current_class_id'] = class_obj.id
+        
+        flash('Vous avez rejoint la classe avec succès!', 'success')
+        return redirect(url_for('student_dashboard'))
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Erreur lors de l'inscription à la classe: {str(e)}")
+        flash('Une erreur est survenue lors de l\'inscription à la classe.', 'danger')
+        return redirect(url_for('join_class'))
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -215,36 +305,59 @@ def teacher_dashboard():
 @app.route('/student_dashboard')
 @login_required
 def student_dashboard():
-    if current_user.role == 'teacher':
+    """Route pour le tableau de bord étudiant."""
+    if current_user.is_teacher:
         return redirect(url_for('teacher_dashboard'))
-        
+    
     try:
-        # Créer un formulaire vide pour le jeton CSRF
-        form = FlaskForm()
+        # Si aucune classe n'est sélectionnée, vérifier les classes de l'étudiant
+        if 'current_class_id' not in session:
+            classes_enrolled = current_user.classes_enrolled
+            if not classes_enrolled:
+                flash('Vous n\'êtes inscrit à aucune classe. Veuillez en rejoindre une.', 'info')
+                return redirect(url_for('join_class'))
+            elif len(classes_enrolled) == 1:
+                session['current_class_id'] = classes_enrolled[0].id
+            else:
+                return redirect(url_for('select_class'))
         
-        # Récupérer les inscriptions de l'élève
-        enrollments = ClassEnrollment.query.filter_by(student_id=current_user.id).all()
+        # Récupérer la classe actuelle
+        current_class = Class.query.get(session['current_class_id'])
+        if not current_class:
+            session.pop('current_class_id', None)
+            return redirect(url_for('student_dashboard'))
         
-        # Récupérer les exercices disponibles pour l'élève
-        available_exercises = []
-        for enrollment in enrollments:
-            class_ = enrollment.enrolled_class
-            for course in class_.courses:
-                exercises = Exercise.query.filter_by(course_id=course.id).all()
-                for exercise in exercises:
-                    available_exercises.append({
-                        'exercise': exercise,
-                        'class': class_,
-                        'course': course
-                    })
+        # Récupérer les exercices et les soumissions pour la classe actuelle
+        class_exercises = []
+        
+        # Exercices directement dans la classe
+        for exercise in current_class.exercises:
+            submission = ExerciseSubmission.query.filter_by(
+                student_id=current_user.id,
+                exercise_id=exercise.id
+            ).first()
+            exercise.is_completed = submission is not None
+            exercise.score = submission.score if submission else None
+            class_exercises.append(exercise)
+        
+        # Exercices des cours
+        for course in current_class.courses:
+            for exercise in course.exercises:
+                submission = ExerciseSubmission.query.filter_by(
+                    student_id=current_user.id,
+                    exercise_id=exercise.id
+                ).first()
+                exercise.is_completed = submission is not None
+                exercise.score = submission.score if submission else None
+                class_exercises.append(exercise)
         
         return render_template('student_dashboard.html',
-                             enrollments=enrollments,
-                             available_exercises=available_exercises,
-                             form=form)
+                            current_class=current_class,
+                            exercises=class_exercises)
+    
     except Exception as e:
-        logger.error(f"Erreur lors de l'accès au tableau de bord étudiant: {str(e)}")
-        flash("Une erreur s'est produite lors de l'accès au tableau de bord.", "error")
+        app.logger.error(f"Erreur dans student_dashboard: {str(e)}")
+        flash("Une erreur s'est produite lors du chargement du tableau de bord.", "danger")
         return redirect(url_for('index'))
 
 @app.route('/exercise_library')
@@ -266,85 +379,25 @@ def exercise_library():
         flash("Une erreur s'est produite lors de l'accès à la bibliothèque.", "error")
         return redirect(url_for('teacher_dashboard'))
 
-@app.route('/classes/join', methods=['POST'])
-@login_required
-def join_class():
-    if current_user.role == 'teacher':
-        flash('Seuls les étudiants peuvent rejoindre une classe.', 'danger')
-        return redirect(url_for('student_dashboard'))
-    
-    invite_code = request.form.get('invite_code')
-    if not invite_code:
-        flash('Le code de la classe est requis.', 'danger')
-        return redirect(url_for('student_dashboard'))
-    
-    # Trouver la classe avec ce code
-    class_obj = Class.query.filter_by(invite_code=invite_code).first()
-    if not class_obj:
-        flash('Code de classe invalide.', 'danger')
-        return redirect(url_for('student_dashboard'))
-    
-    # Vérifier si l'étudiant est déjà inscrit
-    existing_enrollment = ClassEnrollment.query.filter_by(
-        student_id=current_user.id,
-        class_id=class_obj.id
-    ).first()
-    
-    if existing_enrollment:
-        flash('Vous êtes déjà inscrit dans cette classe.', 'info')
-        return redirect(url_for('view_class', class_id=class_obj.id))
-    
-    try:
-        # Créer une nouvelle inscription
-        enrollment = ClassEnrollment(
-            student_id=current_user.id,
-            class_id=class_obj.id
-        )
-        db.session.add(enrollment)
-        db.session.commit()
-        
-        flash('Vous avez rejoint la classe avec succès!', 'success')
-        return redirect(url_for('view_class', class_id=class_obj.id))
-        
-    except Exception as e:
-        db.session.rollback()
-        print(f"Error joining class: {str(e)}")
-        flash('Une erreur est survenue lors de l\'inscription à la classe.', 'danger')
-        return redirect(url_for('student_dashboard'))
-
-@app.route('/classes/create', methods=['GET', 'POST'])
+@app.route('/create_class', methods=['GET', 'POST'])
 @login_required
 @teacher_required
 def create_class():
+    """Route pour créer une nouvelle classe."""
     form = ClassForm()
-    if request.method == 'POST':
-        log_request_info(request)
-        try:
-            if form.validate_on_submit():
-                new_class = Class(
-                    name=form.name.data,
-                    description=form.description.data,
-                    teacher_id=current_user.id
-                )
-                log_model_creation('Class', {
-                    'name': new_class.name,
-                    'teacher_id': new_class.teacher_id
-                })
-                
-                db.session.add(new_class)
-                db.session.commit()
-                
-                logger.info(f"Class created successfully with ID: {new_class.id}")
-                flash('Classe créée avec succès!', 'success')
-                return redirect(url_for('view_class', class_id=new_class.id))
-            else:
-                logger.warning(f"Form validation failed: {form.errors}")
-                flash('Erreur dans le formulaire. Veuillez vérifier les champs.', 'danger')
-        except Exception as e:
-            log_database_error(e, "create_class route")
-            db.session.rollback()
-            flash('Une erreur est survenue lors de la création de la classe.', 'danger')
-    
+    if form.validate_on_submit():
+        # Créer la nouvelle classe
+        new_class = Class(
+            name=form.name.data,
+            description=form.description.data,
+            teacher_id=current_user.id
+        )
+        db.session.add(new_class)
+        db.session.commit()
+        
+        flash(f'La classe {new_class.name} a été créée avec succès! Code d\'invitation : {new_class.invite_code}', 'success')
+        return redirect(url_for('teacher_dashboard'))
+        
     return render_template('create_class.html', form=form)
 
 @app.route('/course/create/<int:class_id>', methods=['GET', 'POST'])
@@ -1191,19 +1244,34 @@ def submit_exercise(exercise_id):
         logger.info(f"Tentative de soumission pour l'exercice {exercise_id}")
         exercise = Exercise.query.get_or_404(exercise_id)
         
+        # Trouver la classe associée à l'exercice
+        target_class = None
+        
+        # Si l'exercice est dans un cours
+        if exercise.course:
+            target_class = exercise.course.class_
+        else:
+            # Chercher dans les classes où l'exercice est directement ajouté
+            for class_ in current_user.enrolled_classes:
+                if exercise in class_.exercises:
+                    target_class = class_
+                    break
+        
         # Vérifier si l'étudiant a déjà soumis cet exercice
         existing_submission = ExerciseSubmission.query.filter_by(
-            student_id=current_user.id,
-            exercise_id=exercise_id
+            exercise_id=exercise_id,
+            student_id=current_user.id
         ).first()
         
         if existing_submission:
             flash('Vous avez déjà soumis cet exercice.', 'warning')
-            return redirect(url_for('view_exercise', exercise_id=exercise_id))
+            if target_class:
+                return redirect(url_for('view_class', class_id=target_class.id))
+            else:
+                return redirect(url_for('student_dashboard'))
         
         answers = {}
-        score = 0
-        
+        score = None
         if exercise.exercise_type == 'QCM':
             total_questions = len(exercise.questions)
             correct_answers = 0
@@ -1259,7 +1327,10 @@ def submit_exercise(exercise_id):
                     score = (correct_matches / total_pairs)
             except json.JSONDecodeError:
                 flash('Format de réponse invalide.', 'error')
-                return redirect(url_for('view_exercise', exercise_id=exercise_id))
+                if target_class:
+                    return redirect(url_for('view_class', class_id=target_class.id))
+                else:
+                    return redirect(url_for('student_dashboard'))
         
         # Calculer le score final en points
         final_score = score * exercise.points
@@ -1268,7 +1339,7 @@ def submit_exercise(exercise_id):
         submission = ExerciseSubmission(
             student_id=current_user.id,
             exercise_id=exercise_id,
-            answers=answers,
+            answers=json.dumps(answers),
             score=score,  # Sauvegarder le score en pourcentage (0-1)
             submitted_at=datetime.utcnow()
         )
@@ -1279,8 +1350,13 @@ def submit_exercise(exercise_id):
         # Afficher le score en pourcentage pour l'utilisateur
         percentage = score * 100
         flash(f'Exercice soumis avec succès ! Score : {percentage:.1f}% ({final_score:.1f}/{exercise.points} points)', 'success')
-        return redirect(url_for('view_exercise', exercise_id=exercise_id))
         
+        # Rediriger vers la classe si possible, sinon vers le tableau de bord
+        if target_class:
+            return redirect(url_for('view_class', class_id=target_class.id))
+        else:
+            return redirect(url_for('student_dashboard'))
+            
     except Exception as e:
         db.session.rollback()
         log_database_error(e, f"Erreur lors de la soumission de l'exercice {exercise_id}")
@@ -1544,9 +1620,17 @@ def view_class(class_id):
     
     # Récupérer les exercices pour chaque cours
     course_exercises = {}
+    total_course_exercises = 0
     for course in courses:
         exercises = Exercise.query.filter_by(course_id=course.id).all()
         course_exercises[course.id] = exercises
+        total_course_exercises += len(exercises)
+    
+    # Récupérer les exercices directement liés à la classe
+    class_exercises = class_.exercises.all()
+    
+    # Calculer le nombre total d'exercices
+    total_exercises = len(class_exercises) + total_course_exercises
     
     # Récupérer les étudiants inscrits
     enrolled_students = User.query.join(ClassEnrollment).filter(ClassEnrollment.class_id == class_id).all()
@@ -1555,6 +1639,8 @@ def view_class(class_id):
                          class_=class_,
                          courses=courses,
                          course_exercises=course_exercises,
+                         class_exercises=class_exercises,
+                         total_exercises=total_exercises,
                          enrolled_students=enrolled_students,
                          title=class_.name)
 
@@ -1865,73 +1951,87 @@ def debug_submissions(exercise_id):
 def exercise_stats():
     """Route pour afficher les statistiques des exercices."""
     try:
-        # Utiliser les modèles depuis models.py
-        teacher_classes = Class.query.filter_by(teacher_id=current_user.id).options(
-            joinedload(Class.courses).joinedload(Course.exercises)
-        ).all()
+        # Récupérer toutes les classes de l'enseignant
+        teacher_classes = Class.query.filter_by(teacher_id=current_user.id).all()
         
-        all_exercises = []
+        # Dictionnaire pour stocker les statistiques par exercice et par classe
+        exercise_stats_dict = {}
         total_submissions = 0
-        average_scores = []
-        exercise_stats = []
         
+        # Pour chaque classe de l'enseignant
         for class_ in teacher_classes:
+            # Récupérer tous les exercices de la classe (cours + directs)
+            class_exercises = set()
+            
+            # Ajouter les exercices des cours
             for course in class_.courses:
-                if course.exercises:
-                    all_exercises.extend(course.exercises)
-        
-        for exercise in all_exercises:
-            # Charger les soumissions avec une jointure sur la table User
-            submissions = db.session.query(
-                ExerciseSubmission,
-                User
-            ).join(
-                User,
-                ExerciseSubmission.student_id == User.id
-            ).filter(
-                ExerciseSubmission.exercise_id == exercise.id
-            ).all()
+                class_exercises.update(course.exercises)
             
-            submissions_with_details = []
-            scores = []
+            # Ajouter les exercices directement liés à la classe
+            class_exercises.update(class_.exercises)
             
-            for submission, user in submissions:
-                if submission.score is not None:
-                    scores.append(float(submission.score))
-                    submissions_with_details.append({
-                        'student_name': user.username,
-                        'score': float(submission.score),
-                        'submitted_at': submission.submitted_at
-                    })
-            
-            num_submissions = len(submissions)
-            total_submissions += num_submissions
-            
-            if scores:  # S'il y a des scores valides
-                avg_score = sum(scores) / len(scores)
-                average_scores.append(avg_score)
+            # Pour chaque exercice dans cette classe
+            for exercise in class_exercises:
+                # Récupérer les soumissions des étudiants de cette classe pour cet exercice
+                submissions = ExerciseSubmission.query.join(
+                    User, ExerciseSubmission.student_id == User.id
+                ).filter(
+                    ExerciseSubmission.exercise_id == exercise.id,
+                    User.id.in_([student.id for student in class_.students])
+                ).all()
                 
-                exercise_stats.append({
-                    'exercise': exercise,
-                    'submissions': submissions_with_details,
-                    'submissions_count': num_submissions,
-                    'average_score': avg_score,
-                    'class_name': exercise.course.class_.name
-                })
+                if not submissions:
+                    continue
+                
+                # Clé unique pour l'exercice dans cette classe
+                stats_key = (exercise.id, class_.id)
+                
+                # Si c'est la première fois qu'on voit cet exercice dans cette classe
+                if stats_key not in exercise_stats_dict:
+                    submissions_with_details = []
+                    scores = []
+                    
+                    for submission in submissions:
+                        if submission.score is not None:
+                            score = float(submission.score)
+                            scores.append(score)
+                            submissions_with_details.append({
+                                'student_name': submission.submitting_student.username,
+                                'score': score,
+                                'submitted_at': submission.submitted_at
+                            })
+                    
+                    if scores:  # S'il y a des scores valides
+                        avg_score = sum(scores) / len(scores)
+                        exercise_stats_dict[stats_key] = {
+                            'exercise': exercise,
+                            'class_name': class_.name,
+                            'submissions': submissions_with_details,
+                            'submissions_count': len(submissions),
+                            'average_score': avg_score
+                        }
+                        total_submissions += len(submissions)
+        
+        # Convertir le dictionnaire en liste pour l'affichage
+        exercise_stats = list(exercise_stats_dict.values())
+        
+        # Calculer la moyenne globale
+        all_scores = [stat['average_score'] for stat in exercise_stats if 'average_score' in stat]
+        overall_average = sum(all_scores) / len(all_scores) if all_scores else 0
         
         overall_stats = {
-            'total_exercises': len(all_exercises),
+            'total_exercises': len(exercise_stats_dict),
             'total_submissions': total_submissions,
-            'average_score': sum(average_scores) / len(average_scores) if average_scores else 0
+            'average_score': overall_average
         }
         
-        return render_template('exercise_stats.html',
-                            exercise_stats=exercise_stats,
-                            overall_stats=overall_stats)
-                            
+        return render_template('exercise_stats.html', 
+                             exercise_stats=exercise_stats,
+                             overall_stats=overall_stats)
+                             
     except Exception as e:
-        log_database_error(e, "Erreur lors de l'accès aux statistiques")
-        flash("Une erreur s'est produite lors de l'accès aux statistiques.", "error")
+        app.logger.error(f"Erreur dans exercise_stats: {str(e)}")
+        flash("Une erreur s'est produite lors du chargement des statistiques.", "danger")
         return redirect(url_for('teacher_dashboard'))
 
 @app.route('/exercise/<int:exercise_id>/stats')
@@ -1991,7 +2091,6 @@ def exercise_specific_stats(exercise_id):
                             exercise_stats=exercise_stats,
                             overall_stats=overall_stats,
                             single_exercise=True)
-                            
     except Exception as e:
         log_database_error(e, f"Erreur lors de l'accès aux statistiques de l'exercice {exercise_id}")
         flash("Une erreur s'est produite lors de l'accès aux statistiques.", "error")
@@ -2012,7 +2111,7 @@ def serve_upload(filename):
         logger.info(f"Tentative d'accès au fichier: {clean_filename}")
         
         # Construire le chemin complet vers le fichier
-        upload_folder = os.path.join(app.static_folder, 'uploads')
+        upload_folder = os.path.join(current_app.config['UPLOAD_FOLDER'], 'uploads')
         file_path = os.path.join(upload_folder, clean_filename)
         logger.info(f"Chemin complet du fichier: {file_path}")
         
@@ -2035,6 +2134,47 @@ def serve_upload(filename):
     except Exception as e:
         logger.error(f"Erreur lors de l'accès au fichier {filename}: {str(e)}")
         abort(404)
+
+@app.route('/join_class', methods=['GET', 'POST'])
+@login_required
+def join_class():
+    """Route pour qu'un étudiant rejoigne une classe."""
+    if current_user.is_teacher:
+        flash('Les enseignants ne peuvent pas rejoindre de classe.', 'warning')
+        return redirect(url_for('teacher_dashboard'))
+
+    form = JoinClassForm()
+    if form.validate_on_submit():
+        try:
+            # Vérifier si le code d'invitation est valide
+            class_obj = Class.query.filter_by(invite_code=form.code.data).first()
+            if not class_obj:
+                flash('Code d\'invitation invalide.', 'danger')
+                return render_template('join_class.html', form=form)
+            
+            # Vérifier si l'étudiant est déjà inscrit
+            if current_user in class_obj.students:
+                flash('Vous êtes déjà inscrit dans cette classe.', 'info')
+                session['current_class_id'] = class_obj.id
+                return redirect(url_for('student_dashboard'))
+            
+            # Ajouter l'étudiant à la classe
+            class_obj.students.append(current_user)
+            db.session.commit()
+            
+            # Définir cette classe comme classe actuelle
+            session['current_class_id'] = class_obj.id
+            
+            flash('Vous avez rejoint la classe avec succès!', 'success')
+            return redirect(url_for('student_dashboard'))
+            
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Erreur lors de l'inscription à la classe: {str(e)}")
+            flash('Une erreur est survenue lors de l\'inscription à la classe.', 'danger')
+            return render_template('join_class.html', form=form)
+    
+    return render_template('join_class.html', form=form)
 
 if __name__ == '__main__':
     with app.app_context():
