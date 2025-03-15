@@ -310,12 +310,15 @@ def student_dashboard():
         return redirect(url_for('teacher_dashboard'))
     
     try:
+        # Initialiser le formulaire de jointure de classe
+        form = JoinClassForm()
+        
         # Si aucune classe n'est sélectionnée, vérifier les classes de l'étudiant
         if 'current_class_id' not in session:
             classes_enrolled = current_user.classes_enrolled
             if not classes_enrolled:
                 flash('Vous n\'êtes inscrit à aucune classe. Veuillez en rejoindre une.', 'info')
-                return redirect(url_for('join_class'))
+                return render_template('student_dashboard.html', form=form)
             elif len(classes_enrolled) == 1:
                 session['current_class_id'] = classes_enrolled[0].id
             else:
@@ -325,7 +328,7 @@ def student_dashboard():
         current_class = Class.query.get(session['current_class_id'])
         if not current_class:
             session.pop('current_class_id', None)
-            return redirect(url_for('student_dashboard'))
+            return render_template('student_dashboard.html', form=form)
         
         # Récupérer les exercices et les soumissions pour la classe actuelle
         class_exercises = []
@@ -353,11 +356,12 @@ def student_dashboard():
         
         return render_template('student_dashboard.html',
                             current_class=current_class,
-                            exercises=class_exercises)
+                            exercises=class_exercises,
+                            form=form)
     
     except Exception as e:
         app.logger.error(f"Erreur dans student_dashboard: {str(e)}")
-        flash("Une erreur s'est produite lors du chargement du tableau de bord.", "danger")
+        flash("Une erreur s'est produite lors du chargement du tableau de bord.", "error")
         return redirect(url_for('index'))
 
 @app.route('/exercise_library')
